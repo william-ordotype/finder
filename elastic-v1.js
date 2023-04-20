@@ -226,7 +226,7 @@ function displayResults(results, input) {
      // resultList.style.top = `${inputRect.bottom + 5}px`;
     //}
   resultList.style.top = `${inputRect.bottom + window.pageYOffset + 5}px`;
-  resultList.style.zIndex = input.id == 'search-bar ? '9999' : '10000';
+  resultList.style.zIndex = input.id == 'search-bar' ? '9999' : '10000';
   resultList.style.background = 'white';
 
 document.querySelector('body').appendChild(resultList);
