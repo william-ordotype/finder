@@ -219,13 +219,13 @@ function displayResults(results, input) {
   resultList.style.width = `${inputRect.width}px`;
   resultList.style.left = `${inputRect.left}px`;
   
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
- resultList.style.top = `${inputRect.bottom + window.pageYOffset + 5}px`; // Add 'window.pageYOffset' to account for scroll position
-    } else {
-      resultList.style.top = `${inputRect.bottom + 5}px`;
-    }
-
+//const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    //if (isIOS) {
+ //resultList.style.top = `${inputRect.bottom + window.pageYOffset + 5}px`; // Add 'window.pageYOffset' to account for scroll position
+    //} else {
+     // resultList.style.top = `${inputRect.bottom + 5}px`;
+    //}
+  resultList.style.top = `${inputRect.bottom + window.pageYOffset + 5}px`;
   resultList.style.zIndex= '9999';
   resultList.style.background = 'white';
 
