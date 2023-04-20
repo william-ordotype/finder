@@ -212,8 +212,8 @@ function displayResults(results, input) {
     resultList = document.createElement('div');
     resultList.id = 'search-results';  
   
-  resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px;background: #fff; position: absolute;";
-  
+  resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px;background: #fff;";
+  resultList.style.position = input.id == "search-bar" ? "absolute" : "fixed";
 
   const inputRect = input.getBoundingClientRect();
   resultList.style.width = `${inputRect.width}px`;
