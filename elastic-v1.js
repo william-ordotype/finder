@@ -14,11 +14,11 @@ document.addEventListener('click', ({ target }) => {
 const searchBarNav = document.getElementById('search-bar-nav');
 const searchBar = document.getElementById('search-bar');
 
-searchBarNav.addEventListener('input', async () => {
+searchBarNav?.addEventListener('input', async () => {
   await inputEvent(searchBarNav);
 })
 
-searchBar.addEventListener('input', async () => {
+searchBar?.addEventListener('input', async () => {
  await inputEvent(searchBar);
 });
 
