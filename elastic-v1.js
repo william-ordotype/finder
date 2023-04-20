@@ -41,7 +41,7 @@ async function inputEvent(input) {
 }
 
 window.addEventListener('resize', () => {
-  const inputRect = searchBar.getBoundingClientRect();
+  const inputRect = searchBar?.getBoundingClientRect();
   const div = document.querySelector('#search-results')
   if(div){
       div.style.width = `${inputRect.width}px`;
@@ -50,7 +50,7 @@ window.addEventListener('resize', () => {
   }
 });
 
-searchBar.addEventListener('focus', async () => {
+searchBar?.addEventListener('focus', async () => {
   const query = searchBar.value.trim();
 
   if(query){
@@ -59,7 +59,7 @@ searchBar.addEventListener('focus', async () => {
   }
 });
 
-searchBarNav.addEventListener('focus', async () => {
+searchBarNav?.addEventListener('focus', async () => {
   const query = searchBarNav.value.trim();
 
   if(query){
@@ -69,11 +69,11 @@ searchBarNav.addEventListener('focus', async () => {
 });
 
 
-searchBarNav.addEventListener('keydown', (e) => {
+searchBarNav?.addEventListener('keydown', (e) => {
   keyDownEvent(e);
 })
 
-searchBar.addEventListener('keydown',  (e) => {
+searchBar?.addEventListener('keydown',  (e) => {
   keyDownEvent(e);
 })
 
