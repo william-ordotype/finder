@@ -225,7 +225,7 @@ function displayResults(results, input) {
     //} else {
      // resultList.style.top = `${inputRect.bottom + 5}px`;
     //}
-  resultList.style.top = `${inputRect.bottom + window.pageYOffset + 5}px`;
+  resultList.style.top = input.id == 'search-bar' ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
   resultList.style.zIndex = input.id == 'search-bar' ? '9999' : '10000';
   resultList.style.background = 'white';
 
