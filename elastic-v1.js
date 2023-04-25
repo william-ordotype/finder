@@ -14,15 +14,15 @@ document.addEventListener('click', ({ target }) => {
 const searchBarNav = document.getElementById('search-bar-nav');
 const searchBar = document.getElementById('search-bar');
 
-searchBarNav?.addEventListener('input', async () => {
-  await inputEvent(searchBarNav);
+searchBarNav?.addEventListener('input', async (event) => {
+  await inputEvent(searchBarNav, event);
 })
 
-searchBar?.addEventListener('input', async () => {
- await inputEvent(searchBar);
+searchBar?.addEventListener('input', async (event) => {
+ await inputEvent(searchBar, event);
 });
 
-async function inputEvent(input) {
+async function inputEvent(input, e) {
   currentFocus = 0;
   const query = input.value.trim();
   if(query){
@@ -32,10 +32,14 @@ async function inputEvent(input) {
     }
     if(results.length == 0) {
       document.getElementById('search-results').innerHTML = "Cette situation clinique n'est pas encore disponible"
-      updateQueryCount(query, false);
+      if (e.inputType != 'deleteContentBackward') {
+        updateQueryCount(query, true);
+      }
       return true;
     }
-    updateQueryCount(query, true);
+    if (e.inputType != 'deleteContentBackward') {
+      updateQueryCount(query, true);
+    }
     displayResults(results, input);
   }else {
     document.querySelector('#search-results')?.remove();
@@ -174,7 +178,7 @@ async function suggest(query) {
           completion: {
             field: "Slug",
             fuzzy: {
-              fuzziness: "AUTO"
+              fuzziness: "2"
             }
           }
         }
