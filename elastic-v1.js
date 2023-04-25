@@ -32,8 +32,10 @@ async function inputEvent(input) {
     }
     if(results.length == 0) {
       document.getElementById('search-results').innerHTML = "Cette situation clinique n'est pas encore disponible"
+      updateQueryCount(query, false);
       return true;
     }
+    updateQueryCount(query, true);
     displayResults(results, input);
   }else {
     document.querySelector('#search-results')?.remove();
@@ -262,5 +264,42 @@ document.querySelector('body').appendChild(resultList);
 
       resultList.appendChild(resultElement);
   });
+}
+
+async function updateQueryCount(query, results) {
+  try {
+      const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_search?q=query:${encodeURIComponent(query)}`;
+      const searchHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': 'ApiKey bFk2VGs0Y0JHcFJXRm1EZENyaGU6R0xpOHdPUENUSXlxS3NvMGhna3JTUQ=='
+      } 
+      const response = await axios.get(searchUrl, { headers: searchHeaders });
+      const hits = response.data.hits.total.value;
+
+      if (hits > 0) {
+          const queryId = response.data.hits.hits[0]._id;
+          const queryCount = response.data.hits.hits[0]._source.count;
+          const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_update/${queryId}`;
+          const updateData = {
+              script: {
+                  source: "ctx._source.count += params.count",
+                  params: {
+                      count: 1
+                  }
+              }
+          };
+          await axios.post(updateUrl, updateData, { headers: searchHeaders });
+      } else {
+          const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_doc`;
+          const indexData = {
+              query: query,
+              count: 1,
+              results: results
+          };
+          await axios.post(indexUrl, indexData, { headers: searchHeaders });
+      }
+  } catch (error) {
+      console.error(`Error updating query count: ${error.message}`);
+  }
 }
 
