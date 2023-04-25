@@ -32,12 +32,12 @@ async function inputEvent(input, e) {
     }
     if(results.length == 0) {
       document.getElementById('search-results').innerHTML = "Cette situation clinique n'est pas encore disponible"
-      if (e.inputType != 'deleteContentBackward') {
+      if (e.inputType != 'deleteContentBackward' && query.length > 3) {
         updateQueryCount(query, true);
       }
       return true;
     }
-    if (e.inputType != 'deleteContentBackward') {
+    if (e.inputType != 'deleteContentBackward' && query.length > 3) {
       updateQueryCount(query, true);
     }
     displayResults(results, input);
@@ -129,7 +129,7 @@ function removeActive(x) {
 // Execute the Elasticsearch search query
 async function search(query) {
   try {
-    const response = await axios.post('https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/ordotype-index/_search', {
+    const response = await axios.post('https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/ordotype-index-2/_search', {
       query: {
         query_string: {
           query: query+'*',
@@ -171,7 +171,7 @@ async function search(query) {
 
 async function suggest(query) {
   try {
-    const response = await axios.post('https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/ordotype-index/_search', {
+    const response = await axios.post('https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/ordotype-index-2/_search', {
       suggest: {
         suggestion: {
           prefix: query,
