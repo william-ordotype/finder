@@ -24,13 +24,11 @@ searchBar?.addEventListener("input", async (event) => {
 });
 
 function handleSendResultsToGA(element) {
-  const path = window.location.pathname;
-  window.dataLayer.push({ event: "show_search_results", path, element });
+  window.dataLayer.push({ event: "show_search_results", element });
 }
 
 function handleSendClickResultToGA(element) {
-  const path = window.location.pathname;
-  window.dataLayer.push({ event: "click_search_results", path, element });
+  window.dataLayer.push({ event: "click_search_results", element });
 }
 
 async function inputEvent(input, e) {
