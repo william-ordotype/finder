@@ -149,7 +149,7 @@ async function search(query) {
             query: query + "*",
             fields: [
               "Name^5",
-              "Alias^4",
+              "Alias^5",
               "Ordonnances médicales^3",
               "Conseils patient^2",
               "Informations cliniques - HTML",
