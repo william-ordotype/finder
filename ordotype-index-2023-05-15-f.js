@@ -148,7 +148,7 @@ async function search(query) {
           query_string: {
             query: query + "*",
             fields: [
-              "Boost^6"
+              "Boost^6",
               "Name^5",
               "Alias^4",
               "Ordonnances médicales^3",
