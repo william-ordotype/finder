@@ -291,7 +291,7 @@ function displayResults(results, input) {
     resultElement.onmouseout = function () {
       this.style.background = "none";
     };
-    resultElement.innerText = result.Name.charAt(0).toUpperCase() + result.Name.slice(1);
+    resultElement.innerText = result.Name;
     resultElement.onclick = () => handleSendClickResultToGA(input.id);
 
     result.gratos == "FALSE" && resultElement.appendChild(img);
