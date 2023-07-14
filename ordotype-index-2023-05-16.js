@@ -31,6 +31,22 @@ function handleSendClickResultToGA(element) {
   window.dataLayer.push({ event: "click_search_results", element });
 }
 
+searchBarNav?.addEventListener('blur', () => {
+  var query = searchBarNav.value.trim()
+
+  setTimeout(function() {
+      query.length > 0 && updateQueryCount(query, true, false);
+  }, 2000)
+});
+
+searchBar?.addEventListener('blur', () => {
+  var query = searchBar.value.trim()
+
+  setTimeout(function() {
+      query.length > 0 && updateQueryCount(query, true, false);
+  }, 2000)
+});
+
 async function inputEvent(input, e) {
   currentFocus = 0;
 
@@ -44,12 +60,12 @@ async function inputEvent(input, e) {
       document.getElementById("search-results").innerHTML =
         "Cette situation clinique n'est pas encore disponible";
       if (e.inputType != "deleteContentBackward" && query.length > 3) {
-        updateQueryCount(query, true);
+        updateQueryCount(query, false);
       }
       return true;
     }
     if (e.inputType != "deleteContentBackward" && query.length > 3) {
-      updateQueryCount(query, true);
+      updateQueryCount(query);
     }
     handleSendResultsToGA(input.id);
     displayResults(results, input);
@@ -300,7 +316,7 @@ function displayResults(results, input) {
   });
 }
 
-async function updateQueryCount(query, results) {
+async function updateQueryCount(query, results = true, click = true) {
   try {
     const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_search?q=query:${encodeURIComponent(
       query
@@ -314,25 +330,64 @@ async function updateQueryCount(query, results) {
     const hits = response.data.hits.total.value;
 
     if (hits > 0) {
-      const queryId = response.data.hits.hits[0]._id;
-      const queryCount = response.data.hits.hits[0]._source.count;
+      let hit = response.data.hits.hits[0];
+      
+      const queryId = hit._id;
+      const queryCount = hit._source.count;
       const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_update/${queryId}`;
-      const updateData = {
-        script: {
-          source: "ctx._source.count += params.count",
-          params: {
-            count: 1,
-          },
-        },
-      };
+      let updateData = {};
+      
+      if (!click) {
+        if(hit._source.hasOwnProperty('noClick')){
+          updateData = {
+            script: {
+              source: "ctx._source.noClick += params.count",
+              params: {
+                  count: 1
+              }
+            }
+          };
+        }else {
+          updateData = {
+            script: {
+              source: "ctx._source.noClick = params.count",
+              params: {
+                  count: 1
+              }
+            }
+          };
+        }
+      }else {
+        updateData = {
+          script: {
+            source: "ctx._source.count += params.count",
+            params: {
+                count: 1
+            }
+          }
+        };
+            
+        if (!results) {
+          if(hit._source.hasOwnProperty('noResults')){
+            updateData.script.source += "; ctx._source.noResults += 1";
+          }else {
+            updateData.script.source += "; ctx._source.noResults = 1";
+          }
+        }
+      }
+
       await axios.post(updateUrl, updateData, { headers: searchHeaders });
     } else {
       const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/search-queries/_doc`;
       const indexData = {
         query: query,
         count: 1,
-        results: results,
       };
+
+      if (!results) {
+        indexData.noResults = 1;
+      }
+      
       await axios.post(indexUrl, indexData, { headers: searchHeaders });
     }
   } catch (error) {
