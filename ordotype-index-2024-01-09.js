@@ -7,8 +7,8 @@ const ES_BASE_URL_STAGING = "https://ordotype-finder.es.eu-west-3.aws.elastic-cl
 const ES_BASE_URL_PRODUCTION = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 
 // Define index names for staging and production
-const ES_INDEX_STAGING = "ordotype-index-production-2024-01-09c"; // Replace with your staging index name
-const ES_INDEX_PRODUCTION = "ordotype-index-2023-12-21c"; // Your current production index
+const ES_INDEX_STAGING = "ordotype-index-staging-2024-01-05"; // Replace with your staging index name
+const ES_INDEX_PRODUCTION = "ordotype-index-production-2024-01-09c"; // Your current production index
 
 // Determine the current environment and set the Elasticsearch index
 const ES_INDEX = window.location.hostname.includes("webflow.io") 
