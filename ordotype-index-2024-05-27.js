@@ -7,7 +7,7 @@ const ES_BASE_URL_STAGING = "https://ordotype-finder.es.eu-west-3.aws.elastic-cl
 const ES_BASE_URL_PRODUCTION = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 
 // Define index names for staging and production
-const ES_INDEX_STAGING = "ordotype-index-staging-2024-05-27-g"; // old: ordotype-index-staging-2024-01-04 
+const ES_INDEX_STAGING = "ordotype-index-staging-2024-05-28"; // old: ordotype-index-staging-2024-01-04 
 const ES_INDEX_PRODUCTION = "ordotype-index-staging-2024-05-27-f"; // old : ordotype-index-production-2024-03-06
 
 // Determine the current environment and set the Elasticsearch index
