@@ -41,6 +41,12 @@ const searchBarMain = document.getElementById("search-bar-main");
 //   await inputEvent(searchBarNav, event);
 // });
 
+if (window.matchMedia("(max-width: 480px)").matches{
+    searchBarMain?.addEventListener("click", () => {
+    window.location.href = `${baseUrl}/components`;
+  });
+}
+
 searchBarMain?.addEventListener("input", async (event) => {
   await inputEvent(searchBarMain, event);
 });
