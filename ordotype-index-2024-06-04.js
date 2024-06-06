@@ -195,7 +195,7 @@ function keyDownEvent(e) {
       /*and simulate a click on the "active" item:*/
       if (x) x[currentFocus].click();
     } else {
-        const query = document.getElementById("search-bar-main").value.trim()
+        const query = e.currentTarget.value.trim();
         window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
     }
   }
