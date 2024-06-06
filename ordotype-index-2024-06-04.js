@@ -336,10 +336,6 @@ function displayResults(results, input) {
   resultList.innerHTML = "";
   
   const query = input.value.trim()
-  let text = document.createElement('h6');
-  text.style.paddingLeft = '8px';
-  text.textContent = `Chercher "${query}" sur Ordotype`;
-  resultList.appendChild(text);
   
   results.forEach((result, index) => {
     const resultElement = document.createElement("a");
