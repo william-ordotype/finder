@@ -45,6 +45,9 @@ if (window.matchMedia("(max-width: 768px)").matches){
     document.getElementById('search-component').addEventListener("click", () => {
     window.location.href = `${baseUrl}/components`;
   });
+  document.getElementById('logo-finder-mobile').addEventListener("click", () => {
+    window.location.href = `${baseUrl}/components`;
+  });
 }
 
 searchBarMain?.addEventListener("input", async (event) => {
