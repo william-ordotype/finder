@@ -97,7 +97,7 @@ async function inputEvent(input, e) {
     }
     if (results.length == 0) {
       let searchResults = document.getElementById("search-results");
-      searchResults.style.background = "#dbdeed";
+      searchResults.style.background = "#ffffff";
       searchResults.style.padding = "16px";
       searchResults.innerHTML =
         `Pas de résultats pour "${query}". Vérifiez l'orthographe de votre recherche`;
