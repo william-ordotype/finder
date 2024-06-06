@@ -336,7 +336,7 @@ function displayResults(results, input) {
   resultList.innerHTML = "";
   
   const query = input.value.trim()
-  let text = document.createElement('h5');
+  let text = document.createElement('h6');
   text.style.paddingLeft = '8px';
   text.textContent = `Chercher "${query}" sur Ordotype`;
   resultList.appendChild(text);
@@ -352,7 +352,7 @@ function displayResults(results, input) {
     const div =  document.createElement('div');
     
     img.setAttribute("src", result.Img);
-    div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16b3; font-size: 14px;border-radius:4px;";
+    div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16; font-size: 14px;border-radius:4px;";
     div.style.backgroundColor = "#0c0e160d";
     if (window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav"){
       div.appendChild(document.createTextNode(result.wordingLogo));
@@ -362,7 +362,7 @@ function displayResults(results, input) {
     div.appendChild(img);
     
     resultElement.style.cssText =
-            "text-decoration: none; color: #0C0E1699; padding: 8px 8px; display: flex; align-items: center; justify-content:space-between; font-size: 14px;";
+            "text-decoration: none; color: #0c0e16; padding: 8px 8px; display: flex; align-items: center; justify-content:space-between; font-size: 14px;";
 
     resultElement.addEventListener("click", function(event) {
         event.preventDefault();
