@@ -43,7 +43,7 @@ searchBarNav?.addEventListener("input", async (event) => {
 
 if (window.matchMedia("(max-width: 768px)").matches){
     document.getElementById('search-component').addEventListener("click", () => {
-    window.location.href = `${baseUrl}/components`;
+    window.location.href = `${baseUrl}/search-result`;
   });
 }
 
