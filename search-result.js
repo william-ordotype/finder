@@ -7,7 +7,7 @@ const page = params.get("page") ?? 1;
 
 let resultList = document.getElementById("search-result-wraper");
 
-const searchBarMain = document.getElementById("search-bar-main");
+//const searchBarMain = document.getElementById("search-bar-main");
 
 searchBarMain?.addEventListener("input", async (event) => {
   await inputEvent(searchBarMain, event);
