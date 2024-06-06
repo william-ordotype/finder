@@ -102,8 +102,8 @@ async function searchAll(query, page) {
               ],
             },
           },
-          size: 10,
-          from: page*10-10,
+          size: 20,
+          from: page*20-20,
           sort: [
             { _score: { order: "desc" } },
             { Alias: { order: "desc", missing: "_last" } },
@@ -226,7 +226,7 @@ async function displayAll(){
   let results = await searchAll(query, page);
   if (results.length == 0) {
     results = await suggest(query);
-    document.getElementById('suggestions').innerText = 'Voici quelques suggestions';
+    document.getElementById('suggestions').innerText = ''; // Voici quelques suggestions
   }
   resultList.innerHTML = '';
   results.forEach((result, index) => {
