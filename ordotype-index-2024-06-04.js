@@ -137,7 +137,7 @@ searchBarMain?.addEventListener("focus", async () => {
 });
 
 searchBarNav?.addEventListener("focus", async () => {
-   const query = searchBarNav.value.trim();
+   const query = searchBarNav.value.trim();https://github.com/william-ordotype/finder/blob/main/ordotype-index-2024-06-04.js
 
    if (query) {
     const results = await search(query);
@@ -154,7 +154,7 @@ searchBarNav?.addEventListener("focus", async () => {
 //   }
 // });
 
-searchBarMainNav?.addEventListener("keydown", (e) => {
+searchBarNav?.addEventListener("keydown", (e) => {
   keyDownEvent(e);
 });
 
