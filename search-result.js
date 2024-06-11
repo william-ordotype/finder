@@ -238,7 +238,8 @@ async function displayAll(){
       
     // Adjust height for mobile devices
       if (window.matchMedia("(max-width: 480px)").matches) {
-      img.style.height = "20px";  // Example height for mobile
+        img.style.minWidth = "20px";
+        img.style.height = "20px";  
       }
 
       resultElement.classList.add("search-result");
