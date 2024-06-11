@@ -235,7 +235,12 @@ async function displayAll(){
       const img = document.createElement("img");
       img.style.minWidth = "16px";
       img.style.height = "16px";
-  
+      
+    // Adjust height for mobile devices
+      if (window.matchMedia("(max-width: 480px)").matches) {
+      img.style.height = "20px";  // Example height for mobile
+      }
+
       resultElement.classList.add("search-result");
       const div =  document.createElement('div');
   
