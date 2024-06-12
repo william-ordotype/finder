@@ -341,8 +341,8 @@ function displayResults(results, input) {
     const resultElement = document.createElement("a");
 
     const img = document.createElement("img");
-    img.style.minWidth = "16px";
-    img.style.height = "16px";
+    img.style.minWidth = "20px";
+    img.style.height = "20px";
       
     resultElement.classList.add("search-result");
     const div =  document.createElement('div');
