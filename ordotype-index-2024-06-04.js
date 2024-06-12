@@ -349,7 +349,8 @@ function displayResults(results, input) {
     
     img.setAttribute("src", result.Img);
     div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16; font-size: 14px;border-radius:4px;";
-    div.style.backgroundColor = "#0c0e160d";
+    div.style.backgroundColor = "transparent";
+//       div.style.backgroundColor = "#0c0e160d";
        
     if (window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav"){
       div.appendChild(document.createTextNode(result.wordingLogo));
