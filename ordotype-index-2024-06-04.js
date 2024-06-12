@@ -343,22 +343,13 @@ function displayResults(results, input) {
     const img = document.createElement("img");
     img.style.minWidth = "16px";
     img.style.height = "16px";
-
-    if (window.matchMedia("(max-width: 480px)").matches) {
-        img.style.minWidth = "20px";
-        img.style.height = "20px";  
-      }
-       
+      
     resultElement.classList.add("search-result");
     const div =  document.createElement('div');
     
     img.setAttribute("src", result.Img);
     div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16; font-size: 14px;border-radius:4px;";
     div.style.backgroundColor = "#0c0e160d";
-
-    if (window.matchMedia("(max-width: 480px)").matches) {
-      div.style.backgroundColor = "transparent";
-      }
        
     if (window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav"){
       div.appendChild(document.createTextNode(result.wordingLogo));
