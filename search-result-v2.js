@@ -11,11 +11,11 @@ searchBarMain?.addEventListener("input", async (event) => {
 });
 
 searchBarMain?.addEventListener('blur', () => {
-  var query = searchBarMain.value.trim()
+  var query = searchBarMain.value.trim();
 
   setTimeout(function() {
       query.length > 0 && updateQueryCount(query, true, false);
-  }, 2000)
+  }, 2000);
 });
 
 searchBarMain?.addEventListener("keydown", (e) => {
@@ -249,7 +249,7 @@ async function displayAll(){
       };
   
       resultElement.appendChild(document.createTextNode(result.Name));  
-      resultElement.appendChild(div)
+      resultElement.appendChild(div);
 
       resultList.appendChild(resultElement);
   });
