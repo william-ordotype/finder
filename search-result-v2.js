@@ -143,7 +143,7 @@ function displayPagination(totalResults, query) {
               number = document.createTextNode(parseInt(page) - 1);
               href = parseInt(page) - 1;
             } 
-            if (page > totalPages - 3 ){ 
+            if (page > totalPages - 3){ 
               number = document.createTextNode(totalPages - 4);
               href = totalPages - 4;
             }
