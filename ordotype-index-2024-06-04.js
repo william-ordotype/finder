@@ -317,8 +317,11 @@ function displayResults(results, input) {
       "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px;background: #fff;";
       resultList.style.width = `${inputRect.width}px`;
       resultList.style.left = `${inputRect.left}px`;
-    }else {
-      resultList.style.width = `100%`;
+    }
+    else {
+       resultList.style.width = `calc(100% - 2rem)`;
+       resultList.style.marginLeft = '1rem';
+       resultList.style.marginRight = '1rem';
     }
     resultList.style.position = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "absolute" : "fixed";
   
