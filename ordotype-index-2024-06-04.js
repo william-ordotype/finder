@@ -173,10 +173,7 @@ if (searchBtn) {
     const query = document.getElementById("search-bar-main").value.trim();
     window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
   });
-} else {
-  console.error("Element with id 'search-btn' not found");
-}
-
+} 
 
 function keyDownEvent(e) {
   var x = document.getElementById("search-results");
