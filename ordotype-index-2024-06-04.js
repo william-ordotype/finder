@@ -166,10 +166,17 @@ searchBarMain?.addEventListener("keydown", (e) => {
 //   keyDownEvent(e);
 // });
 
-document.getElementById("search-btn").addEventListener('click', () => {
-  const query = document.getElementById("search-bar-main").value.trim()
-  window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
-})
+const searchBtn = document.getElementById("search-btn");
+
+if (searchBtn) {
+  searchBtn.addEventListener('click', () => {
+    const query = document.getElementById("search-bar-main").value.trim();
+    window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+  });
+} else {
+  console.error("Element with id 'search-btn' not found");
+}
+
 
 function keyDownEvent(e) {
   var x = document.getElementById("search-results");
