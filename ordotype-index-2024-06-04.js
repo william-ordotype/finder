@@ -228,17 +228,39 @@ async function search(query) {
     //"https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/ordotype-index-staging-2024-05-23/_search",
       {
         query: {
-          query_string: {
-            query: query + "*",
-            fields: [
-              "Boost^6",
-              "Name^5",
-              "Alias^4",
-              "Ordonnances médicales^3",
-              "Conseils patient^2",
-              "Informations cliniques - HTML",
-            ],
-          },
+          bool: {
+            should : [
+              {
+                query_string: {
+                  query: query + "*",
+                  fields: [
+                    "Boost^6",
+                    "Name^5",
+                    "Alias^4",
+                    "Ordonnances médicales^3",
+                    "Conseils patient^2",
+                    "Informations cliniques - HTML",
+                  ],
+                },
+              },
+              {
+                fuzzy: {
+                  Name: {
+                    value: query,
+                    fuzziness: "AUTO"
+                  }
+                }
+              },
+              {
+                fuzzy: {
+                  Alias: {
+                    value: query,
+                    fuzziness: "AUTO"
+                  }
+                }
+              }
+            ]
+          }
         },
         size: 6,
         sort: [
