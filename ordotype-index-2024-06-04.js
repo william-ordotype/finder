@@ -1,27 +1,38 @@
-// //Set up the Elasticsearch endpoint
+// Set up the Elasticsearch endpoint
 const ES_ENDPOINT = "https://my-deployment-dd304c.es.europe-west1.gcp.cloud.es.io/my_index";
 
-// Define Elasticsearch base URLs for staging and production
+// Define Elasticsearch base URLs for staging, production, and Tunisia
 const ES_BASE_URL_STAGING = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 const ES_BASE_URL_PRODUCTION = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
+const ES_BASE_URL_TUNISIA = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 
-// Define index names for staging and production
+// Define index names for staging, production, and Tunisia
 const ES_INDEX_STAGING = "ordotype-index-2024-06-12"; // old: ordotype-index-staging-2024-01-04 
-const ES_INDEX_PRODUCTION = "ordotype-index-2024-06-12"; // old : ordotype-index-2023-12-21c
+const ES_INDEX_PRODUCTION = "ordotype-index-2024-06-12"; // old: ordotype-index-2023-12-21c
+const ES_INDEX_TUNISIA = "ordotype-index-tunisia-2024-06-12"; // new index for Tunisia
 
 // Determine the current environment and set the Elasticsearch index
-const ES_INDEX = window.location.hostname.includes("webflow.io") 
-     ? ES_INDEX_STAGING 
-     : ES_INDEX_PRODUCTION;
+let ES_INDEX, ES_BASE_URL;
+
+if (window.location.hostname.includes("ordotype.webflow.io")) {
+    ES_INDEX = ES_INDEX_STAGING;
+    ES_BASE_URL = ES_BASE_URL_STAGING;
+} else if (window.location.hostname.includes("ordotype-tunisie.webflow.io")) {
+    ES_INDEX = ES_INDEX_TUNISIA;
+    ES_BASE_URL = ES_BASE_URL_TUNISIA;
+} else {
+    ES_INDEX = ES_INDEX_PRODUCTION;
+    ES_BASE_URL = ES_BASE_URL_PRODUCTION;
+}
 
 // Use this to construct your Elasticsearch URL for search and suggest functions
-const ES_URL = window.location.hostname.includes("webflow.io")
-     ? `${ES_BASE_URL_STAGING}${ES_INDEX}`
-     : `${ES_BASE_URL_PRODUCTION}${ES_INDEX}`;
+const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
-const baseUrl = window.location.origin.includes('webflow.io') 
-? 'https://ordotype.webflow.io' 
-: 'https://www.ordotype.fr';
+const baseUrl = window.location.hostname.includes('ordotype.webflow.io') 
+    ? 'https://ordotype.webflow.io' 
+    : window.location.hostname.includes('ordotype-tunisie.webflow.io')
+    ? 'https://ordotype-tunisie.webflow.io'
+    : 'https://www.ordotype.fr';
 
 var currentFocus;
 
