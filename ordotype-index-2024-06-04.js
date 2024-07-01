@@ -9,7 +9,7 @@ const ES_BASE_URL_TUNISIA = "https://ordotype-finder.es.eu-west-3.aws.elastic-cl
 // Define index names for staging, production, and Tunisia
 const ES_INDEX_STAGING = "ordotype-index-2024-06-12"; // old: ordotype-index-staging-2024-01-04 
 const ES_INDEX_PRODUCTION = "ordotype-index-2024-06-12"; // old: ordotype-index-2023-12-21c
-const ES_INDEX_TUNISIA = "ordotype-index-tunisia-2024-06-12"; // new index for Tunisia
+const ES_INDEX_TUNISIA = "ordotype-index-2024-06-12"; // new index for Tunisia
 
 // Determine the current environment and set the Elasticsearch index
 let ES_INDEX, ES_BASE_URL;
