@@ -71,7 +71,8 @@ searchBarNav?.addEventListener('blur', () => {
 });
 
 async function clickEvent(activeFilter) {
-  let query = searchBarNav.value.trim();
+  const searchBar = searchBarMain || searchBarNav
+  let query = searchBar.value.trim();
   let results = await search(query, activeFilter);
   if (results.length == 0) {
       let searchResults = document.getElementById("search-results");
@@ -80,7 +81,7 @@ async function clickEvent(activeFilter) {
         `Pas de résultats pour "${query}", dans ce module.`;
       return true;
   }
-  displayResults(results, searchBarNav);
+  displayResults(results, searchBar);
 }
 
 async function inputEvent(input, e) {
