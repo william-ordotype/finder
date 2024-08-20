@@ -116,7 +116,8 @@ async function inputEvent(input, e) {
 }
 
 window.addEventListener("resize", () => {
-  const inputRect = searchBarNav?.getBoundingClientRect();
+  const searchBar = searchBarMain || searchBarNav
+  const inputRect = searchBar?.getBoundingClientRect();
   const div = document.querySelector("#search-results");
   if (div) {
     div.style.width = `${inputRect.width}px`;
