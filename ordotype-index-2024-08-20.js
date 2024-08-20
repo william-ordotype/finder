@@ -46,11 +46,13 @@ document.addEventListener("click", ({ target }) => {
 });
 
 const searchBarNav = document.getElementById("search-bar-nav");
+const searchBarMain = document.getElementById("search-bar-main");
+const searchBar = searchBarMain || searchBarNav
 
 var lastActiveTab = 'Tab 1';
 var activeFilter = localStorage.getItem('filter') || "";
 
-searchBarNav?.addEventListener("input", async (event) => {
+searchBar?.addEventListener("input", async (event) => {
   await inputEvent(searchBarNav, event);
 });
 
@@ -63,7 +65,7 @@ function handleSendClickResultToGA(element) {
 }
 
 searchBarNav?.addEventListener('blur', () => {
-   var query = searchBarNav.value.trim()
+   var query = searchBar.value.trim()
 
    setTimeout(function() {
       query.length > 0 && updateQueryCount(query, true, false);
@@ -127,16 +129,20 @@ window.addEventListener("resize", () => {
 });
 
 searchBarNav?.addEventListener("focus", async () => {
-   const query = searchBarNav.value.trim();
+   const query = searchBar.value.trim();
 
    if (query) {
     const results = await search(query);
-    handleSendResultsToGA("search-bar-nav-focus");
+    if(searchBarMain){
+      handleSendResultsToGA("search-bar-focus");
+    }else{
+      handleSendResultsToGA("search-bar-nav-focus");
+    }
     displayResults(results);
    }
 });
 
-searchBarNav?.addEventListener("keydown", (e) => {
+searchBar?.addEventListener("keydown", (e) => {
   keyDownEvent(e);
 });
 
@@ -348,12 +354,14 @@ function displayResults(results, input) {
     var searchResult = searchResultOriginal.cloneNode(true);
     searchResult.id = "filter";
     searchResult.style.display = "block";
-    const scrollContainer = searchResult.querySelector('.srt-menu');
-    if (scrollContainer) {
-        scrollContainer.addEventListener('wheel', (evt) => {
-            evt.preventDefault(); // Empêche le défilement vertical
-            scrollContainer.scrollLeft += evt.deltaY; // Applique le défilement horizontal
-        });
+    if(!searchBarMain){
+      const scrollContainer = searchResult.querySelector('.srt-menu');
+      if (scrollContainer) {
+          scrollContainer.addEventListener('wheel', (evt) => {
+              evt.preventDefault(); // Empêche le défilement vertical
+              scrollContainer.scrollLeft += evt.deltaY; // Applique le défilement horizontal
+          });
+      }
     }
     searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
     searchResult.querySelectorAll('a').forEach((link, index) => {
