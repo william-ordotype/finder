@@ -350,7 +350,7 @@ function displayResults(results, input) {
     resultList.style.zIndex = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "9999" : "10000";
     resultList.style.background = "white";
 
-    let searchResultOriginal = document.querySelector('#search-result');
+    let searchResultOriginal = searchBarMain ? document.querySelector('#search-result') : document.querySelector('#search-result-nav');
     var searchResult = searchResultOriginal.cloneNode(true);
     searchResult.id = "filter";
     searchResult.style.display = "block";
