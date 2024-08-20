@@ -53,7 +53,7 @@ var lastActiveTab = 'Tab 1';
 var activeFilter = localStorage.getItem('filter') || "";
 
 searchBar?.addEventListener("input", async (event) => {
-  await inputEvent(searchBarNav, event);
+  await inputEvent(searchBar, event);
 });
 
 function handleSendResultsToGA(element) {
