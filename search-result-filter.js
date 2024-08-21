@@ -153,7 +153,7 @@ async function searchFilter(query, page, filter) {
                  "filter": filter ? [
                   {
                     "wildcard": {
-                      "Wording_Logo": `*${filter}*`
+                      "Filtres": `*${filter}*`
                     }
                   }
                 ] : []
@@ -286,7 +286,15 @@ if (query != null){
         }
         link.addEventListener('click', (el) => {
             activeTab = el.currentTarget.getAttribute('data-w-tab');
-            activeFilter = el.target.innerText != "Tous les résultats" ? el.target.innerText : "";
+            stringifiedFilter = el.target.innerText.toString()                  
+                                                    .normalize('NFD')   
+                                                    .replace(/[\u0300-\u036f]/g, '')  
+                                                    .toLowerCase() 
+                                                    .trim() 
+                                                    .replace(/[^a-z0-9\s-]/g, '')  
+                                                    .replace(/\s+/g, '-') 
+                                                    .replace(/-+/g, '-');
+            activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
             localStorage.setItem('filter', activeFilter);
             page = 1;
             displayAll();
