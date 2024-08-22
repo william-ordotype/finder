@@ -259,6 +259,30 @@ async function search(query, filter) {
                       "Filtres": `*${filter}*`
                     }
                   }
+                ] : [],
+               "must_not": !filter ? [
+                 {
+                    "bool": {
+                      "must": [
+                        {
+                          "wildcard": {
+                            "Filtres": `*only*`
+                          }
+                        },
+                        {
+                          "bool": {
+                            "must_not": [
+                              {
+                                "term": {
+                                  "Filtres": `all-only`
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
                 ] : []
               }
           },
