@@ -156,6 +156,13 @@ async function searchFilter(query, page, filter) {
                       "Filtres": `*${filter}*`
                     }
                   }
+                ] : [],
+                "must_not": !filter ? [
+                  {
+                    "wildcard": {
+                      "Filtres": `*only*`
+                    }
+                  }
                 ] : []
                 }
             },
