@@ -150,6 +150,21 @@ searchBar?.addEventListener("keydown", (e) => {
   keyDownEvent(e);
 });
 
+const searchBtn = document.getElementById("search-btn");
+
+if (searchBtn) {
+  searchBtn.addEventListener('click', () => {
+    const query = document.getElementById("search-bar-main").value.trim();
+    window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+  });
+} 
+
+if (window.matchMedia("(max-width: 768px)").matches){
+    document.getElementById('search-component').addEventListener("click", () => {
+    window.location.href = `${baseUrl}/search-result`;
+  });
+}
+
 function keyDownEvent(e) {
   var x = document.getElementById("search-results");
   if (x) x = x.getElementsByTagName("a");
