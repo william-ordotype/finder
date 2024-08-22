@@ -195,6 +195,19 @@ function removeActive(x) {
   }
 }
 
+function transformString(input) {
+    return input
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+}
+
+
 async function search(query, filter) {
   try {
     const response = await axios.post(
@@ -372,21 +385,14 @@ function displayResults(results, input) {
     let filterStored = localStorage.getItem('filter')
     if (filterStored) {
       if (index === 0) link.classList.remove('w--current');
-      if (filterStored == link.innerText) {
+      if (filterStored == transformString(link.innerText) {
         link.classList.add('w--current');
         lastActiveTab = link.getAttribute('data-w-tab');
       }
     }   
       link.addEventListener('click', (el) => {
           el.preventDefault();
-          stringifiedFilter = el.target.innerText.toString()                  
-                                                  .normalize('NFD')   
-                                                  .replace(/[\u0300-\u036f]/g, '')  
-                                                  .toLowerCase() 
-                                                  .trim() 
-                                                  .replace(/[^a-z0-9\s-]/g, '')  
-                                                  .replace(/\s+/g, '-') 
-                                                  .replace(/-+/g, '-');
+          stringifiedFilter = transformString(el.target.innerText);
           activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
           localStorage.setItem('filter', activeFilter);
           document.querySelector('#filter a[data-w-tab="'+lastActiveTab+'"]').classList.remove('w--current');
@@ -407,14 +413,7 @@ function displayResults(results, input) {
         if (activeFilter == "") {
           filter = "all";
         }else {
-          filter = activeFilter.toString()                  
-                                .normalize('NFD')   
-                                .replace(/[\u0300-\u036f]/g, '')  
-                                .toLowerCase() 
-                                .trim() 
-                                .replace(/[^a-z0-9\s-]/g, '')  
-                                .replace(/\s+/g, '-') 
-                                .replace(/-+/g, '-');
+          filter = transformString(activeFilter);
         }
         if (!result.filtres.includes(filter)) return;
     }
