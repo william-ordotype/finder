@@ -208,14 +208,7 @@ async function displayAll(){
           if (activeFilter == "") {
             filter = "all";
           }else {
-            filter = activeFilter.toString()                  
-                                  .normalize('NFD')   
-                                  .replace(/[\u0300-\u036f]/g, '')  
-                                  .toLowerCase() 
-                                  .trim() 
-                                  .replace(/[^a-z0-9\s-]/g, '')  
-                                  .replace(/\s+/g, '-') 
-                                  .replace(/-+/g, '-');
+            filter = transformString(activeFilter);
           }
           if (!result.filtres.includes(filter)) return;
         }
@@ -280,20 +273,13 @@ if (query != null){
   //document.addEventListener("DOMContentLoaded", () => {
   $(document).ready(function() {
     document.querySelectorAll('#filter a').forEach((link) => {
-        if (link.innerText == activeFilter) {
+        if (transformString(link.innerText) == activeFilter) {
           activeTab = link.getAttribute('data-w-tab');
           link.click();
         }
         link.addEventListener('click', (el) => {
             activeTab = el.currentTarget.getAttribute('data-w-tab');
-            stringifiedFilter = el.target.innerText.toString()                  
-                                                    .normalize('NFD')   
-                                                    .replace(/[\u0300-\u036f]/g, '')  
-                                                    .toLowerCase() 
-                                                    .trim() 
-                                                    .replace(/[^a-z0-9\s-]/g, '')  
-                                                    .replace(/\s+/g, '-') 
-                                                    .replace(/-+/g, '-');
+            stringifiedFilter = transformString(el.target.innerText);
             activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
             localStorage.setItem('filter', activeFilter);
             page = 1;
