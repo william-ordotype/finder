@@ -411,13 +411,20 @@ function displayResults(results, input) {
     searchResult.id = "filter";
     searchResult.style.display = "block";
     if(!searchBarMain){
-      const scrollContainer = searchResult.querySelector('.srt-menu');
-      if (scrollContainer) {
-          scrollContainer.addEventListener('wheel', (evt) => {
-              evt.preventDefault(); // Empêche le défilement vertical
-              scrollContainer.scrollLeft += evt.deltaY; // Applique le défilement horizontal
-          });
-      }
+        const scrollContainer = searchResult.querySelector('.search-result-tabs');
+        const scrollContent = searchResult.querySelector('.srt-menu');
+        
+        scrollContent.addEventListener('mousemove', (e) => {
+            const containerWidth = scrollContainer.offsetWidth;
+            const contentWidth = scrollContent.scrollWidth;
+            const mouseX = e.clientX - scrollContainer.getBoundingClientRect().left;
+        
+            // Calculer la position de défilement en fonction de la position de la souris
+            const scrollPercentage = mouseX / containerWidth;
+            const scrollPosition = (contentWidth - containerWidth) * scrollPercentage;
+        
+            scrollContent.style.transform = `translateX(${-scrollPosition}px)`;
+        });
     }
     searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
     searchResult.querySelectorAll('a').forEach((link, index) => {
