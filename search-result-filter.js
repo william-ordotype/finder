@@ -293,7 +293,7 @@ async function displayAll(){
     });
   }
 
-if (query != null){ 
+
   //document.addEventListener("DOMContentLoaded", () => {
   $(document).ready(function() {
     document.querySelectorAll('#filter a').forEach((link) => {
@@ -310,6 +310,8 @@ if (query != null){
             displayAll();
         })
     })
+    if (query != null){ 
    displayAll();
+      }
   });
-}
+
