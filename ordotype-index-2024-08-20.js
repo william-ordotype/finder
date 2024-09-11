@@ -160,10 +160,12 @@ if (searchBtn) {
 } 
 
 if (window.matchMedia("(max-width: 768px)").matches){
-    document.getElementById('search-component').addEventListener("click", () => {
-    window.location.href = `${baseUrl}/search-result`;
+    const searchComponent = document.getElementById('search-component');
+    if (searchComponent) {
+        searchComponent.addEventListener("click", () => {
+        window.location.href = `${baseUrl}/search-result`;
   });
-}
+}}
 
 function keyDownEvent(e) {
   var x = document.getElementById("search-results");
