@@ -1,9 +1,14 @@
 var params = new URLSearchParams(location.search);
 let query = params.get("query");
 const page = params.get("page") ?? 1;
-//const baseUrl = window.location.origin.includes('webflow.io') 
-  //? 'https://ordotype.webflow.io' 
-  //: 'https://www.ordotype.fr';
+
+const baseUrl = window.location.origin.includes('webflow.io')
+  ? (window.location.origin.includes('tunisie') 
+      ? 'https://ordotype-tunisie.webflow.io' 
+      : 'https://ordotype.webflow.io')
+  : (window.location.origin.includes('.tn') 
+      ? 'https://www.ordotype.tn' 
+      : 'https://www.ordotype.fr');
 
 let resultList = document.getElementById("search-result-wraper");
 
