@@ -28,12 +28,13 @@ if (window.location.hostname.includes("ordotype.webflow.io")) {
 // Use this to construct your Elasticsearch URL for search and suggest functions
 const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
-const baseUrl = window.location.hostname.includes('ordotype.webflow.io') 
-    ? 'https://ordotype.webflow.io' 
-    : window.location.hostname.includes('ordotype-tunisie.webflow.io')
-    ? 'https://ordotype-tunisie.webflow.io'
-    : 'https://www.ordotype.fr';
-
+const baseUrl = window.location.origin.includes('webflow.io')
+  ? (window.location.origin.includes('tunisie') 
+      ? 'https://ordotype-tunisie.webflow.io' 
+      : 'https://ordotype.webflow.io')
+  : (window.location.origin.includes('.tn') 
+      ? 'https://www.ordotype.tn' 
+      : 'https://www.ordotype.fr');
 
 var currentFocus;
 
