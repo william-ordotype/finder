@@ -7,9 +7,9 @@ const ES_BASE_URL_PRODUCTION = "https://ordotype-finder.es.eu-west-3.aws.elastic
 const ES_BASE_URL_TUNISIA = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 
 // Define index names for staging, production, and Tunisia
-const ES_INDEX_STAGING = "ordotype-index-2024-09-04"; // old: ordotype-index-staging-2024-01-04 
-const ES_INDEX_PRODUCTION = "ordotype-index-2024-09-04"; // old: ordotype-index-2023-12-21c
-const ES_INDEX_TUNISIA = "ordotype-index-2024-09-04"; // new index for Tunisia
+const ES_INDEX_STAGING = "ordotype-index-2024-10-01"; // old: ordotype-index-staging-2024-01-04 
+const ES_INDEX_PRODUCTION = "ordotype-index-2024-10-01"; // old: ordotype-index-2023-12-21c
+const ES_INDEX_TUNISIA = "ordotype-index-2024-10-01"; // new index for Tunisia
 
 // Determine the current environment and set the Elasticsearch index
 let ES_INDEX, ES_BASE_URL;
@@ -28,12 +28,13 @@ if (window.location.hostname.includes("ordotype.webflow.io")) {
 // Use this to construct your Elasticsearch URL for search and suggest functions
 const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
-const baseUrl = window.location.hostname.includes('ordotype.webflow.io') 
-    ? 'https://ordotype.webflow.io' 
-    : window.location.hostname.includes('ordotype-tunisie.webflow.io')
-    ? 'https://ordotype-tunisie.webflow.io'
-    : 'https://www.ordotype.fr';
-
+const baseUrl = window.location.origin.includes('webflow.io')
+  ? (window.location.origin.includes('tunisie') 
+      ? 'https://ordotype-tunisie.webflow.io' 
+      : 'https://ordotype.webflow.io')
+  : (window.location.origin.includes('.tn') 
+      ? 'https://www.ordotype.tn' 
+      : 'https://www.ordotype.fr');
 
 var currentFocus;
 
