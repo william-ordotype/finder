@@ -4,6 +4,7 @@ var page = params.get("page") ?? 1;
 var activeTab  = "Tab 1";
 
 async function inputEvent(input, e) {
+  currentFocus = 3;
   query = input.value.trim();
   page = 1;
   displayAll();
