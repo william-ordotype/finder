@@ -316,7 +316,7 @@ async function displayAll(){
             activeTab = el.currentTarget.getAttribute('data-w-tab');
             stringifiedFilter = transformString(el.target.innerText);
             activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
-            setItemWithExpiration('filter', activeFilter, 24);
+            setItemWithExpiration('filterTemp', activeFilter, 24);
             page = 1;
             displayAll();
         })
