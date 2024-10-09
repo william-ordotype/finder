@@ -92,7 +92,7 @@ async function clickEvent(activeFilter) {
 }
 
 async function inputEvent(input, e) {
-  currentFocus = 3;
+  currentFocus = -1;
 
   const query = input.value.trim();
   if (query) {
@@ -172,6 +172,7 @@ function keyDownEvent(e) {
   var x = document.getElementById("search-results") || document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
   if (x) x = x.getElementsByTagName("a");
   if (e.keyCode == 40) {
+    if (currentFocus == -1 && !window.location.pathname.includes("search-result")) currentFocus = 3;
     currentFocus++;
     /*and and make the current item more visible:*/
     addActive(x);
