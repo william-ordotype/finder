@@ -148,6 +148,7 @@ searchBarNav?.addEventListener("focus", async () => {
 });
 
 searchBar?.addEventListener("keydown", (e) => {
+  e.preventDefault();
   keyDownEvent(e);
 });
 
