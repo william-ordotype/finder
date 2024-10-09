@@ -169,7 +169,7 @@ if (window.matchMedia("(max-width: 768px)").matches){
 }}
 
 function keyDownEvent(e) {
-  var x = document.getElementById("search-results") || document.querySelectorAll(`div[data-w-tab="${activeTab}"] div.search-result-body a`);
+  var x = document.getElementById("search-results") || document.querySelectorAll(`div[data-w-tab="${activeTab}"] div.search-result-body`);
   if (x) x = x.getElementsByTagName("a");
   if (e.keyCode == 40) {
     currentFocus++;
