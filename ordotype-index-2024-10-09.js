@@ -55,7 +55,7 @@ if(window.location.pathname.includes("search-result") && window.innerWidth > 767
 }
 
 var lastActiveTab = 'Tab 1';
-var activeFilter = getItemWithExpiration('filter') || "";
+var activeFilter = getItemWithExpiration('filterTemp') || "";
 
 searchBar?.addEventListener("input", async (event) => {
   await inputEvent(searchBar, event);
@@ -96,7 +96,7 @@ async function inputEvent(input, e) {
 
   const query = input.value.trim();
   if (query) {
-    let filterStored = getItemWithExpiration('filter') || "";
+    let filterStored = getItemWithExpiration('filterTemp') || "";
     let results = await search(query, filterStored);
     if (results.length == 0) {
       results = await suggest(query);
@@ -470,7 +470,7 @@ function displayResults(results, input) {
     }
     searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
     searchResult.querySelectorAll('a').forEach((link, index) => {
-    let filterStored = getItemWithExpiration('filter');  
+    let filterStored = getItemWithExpiration('filterTemp');  
     if (filterStored) {
       if (index === 0) link.classList.remove('w--current');
       if (filterStored == transformString(link.innerText)) {
@@ -482,7 +482,7 @@ function displayResults(results, input) {
           el.preventDefault();
           stringifiedFilter = transformString(el.target.innerText);
           activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
-          setItemWithExpiration('filter', activeFilter, 24);
+          setItemWithExpiration('filterTemp', activeFilter, 24);
           document.querySelector('#filter a[data-w-tab="'+lastActiveTab+'"]').classList.remove('w--current');
           el.currentTarget.classList.add('w--current')
           lastActiveTab = el.currentTarget.getAttribute('data-w-tab');
