@@ -69,7 +69,7 @@ function handleSendClickResultToGA(element) {
   window.dataLayer.push({ event: "click_search_results", element });
 }
 
-searchBarNav?.addEventListener('blur', () => {
+searchBar?.addEventListener('blur', () => {
    var query = searchBar.value.trim()
 
    setTimeout(function() {
@@ -133,22 +133,25 @@ window.addEventListener("resize", () => {
   }
 });
 
-searchBarNav?.addEventListener("focus", async () => {
+searchBar?.addEventListener("focus", async () => {
    const query = searchBar.value.trim();
 
    if (query) {
-    const results = await search(query);
+    let filterStored = getItemWithExpiration('filterTemp') || "";
+    const results = await search(query, filterStored);
     if(searchBarMain){
       handleSendResultsToGA("search-bar-focus");
     }else{
       handleSendResultsToGA("search-bar-nav-focus");
     }
-    displayResults(results);
+    displayResults(results, searchBar);
    }
 });
 
 searchBar?.addEventListener("keydown", (e) => {
-  e.preventDefault();
+  if (e.key === 'Enter') {
+     e.preventDefault(); // Empêche l'action par défaut pour la touche Entrée
+ }
   keyDownEvent(e);
 });
 
@@ -170,8 +173,15 @@ if (window.matchMedia("(max-width: 768px)").matches){
 }}
 
 function keyDownEvent(e) {
-  var x = document.getElementById("search-results") || document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
-  if (x) x = x.getElementsByTagName("a");
+  var x = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`));
+  if (x) {
+     x = x.getElementsByTagName("a");
+  }else {
+     if (e.keyCode == 13) {
+        const query = e.currentTarget.value.trim();
+        window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+     }
+  }
   if (e.keyCode == 40) {
     if (currentFocus == -1 && !window.location.pathname.includes("search-result")) currentFocus = 3;
     currentFocus++;
