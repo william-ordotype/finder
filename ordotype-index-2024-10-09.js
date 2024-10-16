@@ -17,7 +17,7 @@ let ES_INDEX, ES_BASE_URL;
 if (window.location.hostname.includes("ordotype.webflow.io")) {
     ES_INDEX = ES_INDEX_STAGING;
     ES_BASE_URL = ES_BASE_URL_STAGING;
-} else if (window.location.hostname.includes("ordotype-tunisie.webflow.io")) {
+} else if (window.location.hostname.includes("ordoguide")) {
     ES_INDEX = ES_INDEX_TUNISIA;
     ES_BASE_URL = ES_BASE_URL_TUNISIA;
 } else {
@@ -29,11 +29,11 @@ if (window.location.hostname.includes("ordotype.webflow.io")) {
 const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
 const baseUrl = window.location.origin.includes('webflow.io')
-  ? (window.location.origin.includes('tunisie') 
-      ? 'https://ordotype-tunisie.webflow.io' 
+  ? (window.location.origin.includes('ordoguide') 
+      ? 'https://ordoguide.webflow.io' 
       : 'https://ordotype.webflow.io')
   : (window.location.origin.includes('.tn') 
-      ? 'https://www.ordotype.tn' 
+      ? 'https://www.ordoguide.tn' 
       : 'https://www.ordotype.fr');
 
 var currentFocus;
