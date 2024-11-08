@@ -35,7 +35,7 @@ function displayPagination(totalResults, query){
       }
     } else {
       for (let index = 1; index < 8; index++) {
-        let link  = document.createElement('a');
+        let link = document.createElement('a');
         link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;';
         if (page <= 4 && index === page) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
         
@@ -47,8 +47,8 @@ function displayPagination(totalResults, query){
             break;
           case 3:
             if (page > 4) {
-              number = document.createTextNode(page - 1);
-              href = page - 1;
+              number = document.createTextNode(parseInt(page) - 1);
+              href = parseInt(page) - 1;
             } 
             if (page > totalPages - 3) { 
               number = document.createTextNode(totalPages - 4);
@@ -69,8 +69,8 @@ function displayPagination(totalResults, query){
             break;
           case 5: 
             if (page > 4) {
-              number = document.createTextNode(page + 1);
-              href = page + 1;
+              number = document.createTextNode(parseInt(page) + 1);
+              href = parseInt(page) + 1;
             } 
             if (page > totalPages - 3) { 
               number = document.createTextNode(totalPages - 2);
