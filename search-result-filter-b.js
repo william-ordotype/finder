@@ -15,84 +15,86 @@ function displayPagination(totalResults, query){
     const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
     paginationDiv.innerHTML = '';
     paginationDiv.style.cssText = "display: flex; justify-content: center; grid-column-gap: .5rem; align-items: center;"
+
+    const activeColor = baseUrl.includes('ordotype') ? '#3454f6' : '#4ade80';
   
     if (totalPages <= 7) {
       for (let index = 1; index <= totalPages; index++) {
-        let link  = document.createElement('a')
-        link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;'
-        if (index == page) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-        link.setAttribute('href', `http://ordotype.webflow.io/search-result?query=${query}&page=${index}`);
+        let link  = document.createElement('a');
+        link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;';
+        if (index === page) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+        link.setAttribute('href', `${baseUrl}/search-result?query=${query}&page=${index}`);
         let number = document.createTextNode(index);
-         link.addEventListener('click', () => {
-             event.preventDefault();
-             page = index;
-             displayAll();
-        })
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          page = index;
+          displayAll();
+        });
         link.appendChild(number);
         paginationDiv.appendChild(link);
       }
     } else {
       for (let index = 1; index < 8; index++) {
-          let link  = document.createElement('a')
-          link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;'
-          if (page <= 4 && index == page) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
+        let link  = document.createElement('a');
+        link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;';
+        if (page <= 4 && index === page) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
         
-          let number = document.createTextNode(index);
-          let href = index;
-          switch (index) {
-            case 2:
-              if (page > 4) number = document.createTextNode('...');
-              break;
-            case 3:
-              if (page > 4) {
-                number = document.createTextNode(parseInt(page)-1);
-                href = parseInt(page)-1;
-              } 
-              if ( page > totalPages - 3 ){ 
-                number = document.createTextNode(totalPages - 4);
-                href = totalPages - 4;
-              }
-              break;
-            case 4:
-              if (page > 4) {
-                number = document.createTextNode(page);
-                href = page;
-              } 
-              if (page > 4 && (page <= totalPages - 3)) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-              if ( page > totalPages - 3 ){ 
-                number = document.createTextNode(totalPages - 3);
-                href = totalPages - 3;
-                if(page == (totalPages - 3)) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-              }
-              break;
-            case 5: 
-              if (page > 4) {
-                number = document.createTextNode(parseInt(page)+1);
-                href = parseInt(page)+1;
-              } 
-              if ( page > totalPages - 3 ){ 
-                number = document.createTextNode(totalPages - 2);
-                href = totalPages - 2;
-                if(page == (totalPages - 2)) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-              }
-              break;
-            case 6:
-              if ( page > totalPages - 3 ){
-                number = document.createTextNode(totalPages - 1);
-                href = totalPages - 1;
-                if(page == (totalPages - 1)) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-              } else {
-                number = document.createTextNode('...');
-              }
-              break;
-            case 7:
-              number = document.createTextNode(totalPages);
-              href = totalPages;
-              if(page == totalPages) link.style.cssText = "background-color: #3454f6; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;";
-              break;
-            default:
-              break;
-          }
+        let number = document.createTextNode(index);
+        let href = index;
+        switch (index) {
+          case 2:
+            if (page > 4) number = document.createTextNode('...');
+            break;
+          case 3:
+            if (page > 4) {
+              number = document.createTextNode(page - 1);
+              href = page - 1;
+            } 
+            if (page > totalPages - 3) { 
+              number = document.createTextNode(totalPages - 4);
+              href = totalPages - 4;
+            }
+            break;
+          case 4:
+            if (page > 4) {
+              number = document.createTextNode(page);
+              href = page;
+            } 
+            if (page > 4 && (page <= totalPages - 3)) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+            if (page > totalPages - 3) { 
+              number = document.createTextNode(totalPages - 3);
+              href = totalPages - 3;
+              if (page === totalPages - 3) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+            }
+            break;
+          case 5: 
+            if (page > 4) {
+              number = document.createTextNode(page + 1);
+              href = page + 1;
+            } 
+            if (page > totalPages - 3) { 
+              number = document.createTextNode(totalPages - 2);
+              href = totalPages - 2;
+              if (page === totalPages - 2) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+            }
+            break;
+          case 6:
+            if (page > totalPages - 3) {
+              number = document.createTextNode(totalPages - 1);
+              href = totalPages - 1;
+              if (page === totalPages - 1) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+            } else {
+              number = document.createTextNode('...');
+            }
+            break;
+          case 7:
+            number = document.createTextNode(totalPages);
+            href = totalPages;
+            if (page === totalPages) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
+            break;
+          default:
+            break;
+        }
   
           link.setAttribute('href', `${baseUrl}/search-result?query=${query}&page=${href}`);
           link.addEventListener('click', () => {
