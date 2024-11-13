@@ -1,40 +1,29 @@
-//Set up the Elasticsearch endpoint
+// Set up the Elasticsearch endpoint
 const ES_ENDPOINT = "https://my-deployment-dd304c.es.europe-west1.gcp.cloud.es.io/my_index";
 
-// Define Elasticsearch base URLs for staging, production, and Tunisia
-const ES_BASE_URL_STAGING = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_BASE_URL_PRODUCTION = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_BASE_URL_TUNISIA = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
+// Define a single Elasticsearch base URL
+const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 
 // Define index names for staging, production, and Tunisia
-const ES_INDEX_STAGING = "ordotype-index-2024-10-01"; // old: ordotype-index-staging-2024-01-04 
-const ES_INDEX_PRODUCTION = "ordotype-index-2024-10-01"; // old: ordotype-index-2023-12-21c
-const ES_INDEX_TUNISIA = "ordotype-tunisie-index-2024-11-05"; // new index for Tunisia
+const ES_INDEX_STAGING = "ordotype-index-2024-10-01";
+const ES_INDEX_PRODUCTION = "ordotype-index-2024-10-01";
+const ES_INDEX_TUNISIA = "ordotype-tunisie-index-2024-11-05";
 
 // Determine the current environment and set the Elasticsearch index
-let ES_INDEX, ES_BASE_URL;
+let ES_INDEX;
 
 if (window.location.hostname.includes("ordotype.webflow.io")) {
     ES_INDEX = ES_INDEX_STAGING;
-    ES_BASE_URL = ES_BASE_URL_STAGING;
 } else if (window.location.hostname.includes("ordoguide")) {
     ES_INDEX = ES_INDEX_TUNISIA;
-    ES_BASE_URL = ES_BASE_URL_TUNISIA;
 } else {
     ES_INDEX = ES_INDEX_PRODUCTION;
-    ES_BASE_URL = ES_BASE_URL_PRODUCTION;
 }
 
-// Use this to construct your Elasticsearch URL for search and suggest functions
+// Construct your Elasticsearch URL for search and suggest functions
 const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
-const baseUrl = window.location.origin.includes('webflow.io')
-  ? (window.location.origin.includes('ordoguide') 
-      ? 'https://ordoguide.webflow.io' 
-      : 'https://ordotype.webflow.io')
-  : (window.location.origin.includes('.tn') 
-      ? 'https://www.ordoguide.tn' 
-      : 'https://www.ordotype.fr');
+const baseUrl = window.location.origin;
 
 var currentFocus;
 
