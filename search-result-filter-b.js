@@ -126,9 +126,9 @@ async function searchFilter(query, page, filter) {
                                         query_string: {
                                             query: query + "*",
                                             fields: [
-                                                "Boost^6",
-                                                "Name^5",
-                                                "Alias^4",
+                                                "Boost^30",
+                                                "Name^20",
+                                                "Alias^10",
                                                 "Ordonnances médicales^3",
                                                 "Conseils patient^2",
                                                 "Informations cliniques - HTML",
