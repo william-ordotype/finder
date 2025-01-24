@@ -47,12 +47,16 @@ var lastActiveTab = 'Tab 1';
 //var activeFilter = getItemWithExpiration('filterTemp') || "";
 const planIds = ['pln_compte-praticien-offre-speciale-500-premiers--893z0o60', 'pln_praticien-belgique-2p70qka'];
 const activePlanIds = JSON.parse(localStorage.getItem('_ms-mem') || '{}').planConnections?.filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId) || [];
-let activeFilter = getItemWithExpiration('filterTemp') 
-    || ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
-    || (activePlanIds.length === 2 
-        && activePlanIds.includes("pln_brique-past-due-os1c808ai") 
-        && activePlanIds.some(id => planIds.includes(id)))
-    ) ? "medecine-generale" : "";
+let activeFilter = (getItemWithExpiration('filterTemp')) 
+    || (
+      ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
+      || (activePlanIds.length === 2 
+          && activePlanIds.includes("pln_brique-past-due-os1c808ai") 
+          && activePlanIds.some(id => planIds.includes(id)))
+      )
+      ? "medecine-generale"
+      : ""
+    );
 
 searchBar?.addEventListener("input", async (event) => {
   await inputEvent(searchBar, event);
