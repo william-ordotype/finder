@@ -44,9 +44,15 @@ if(window.location.pathname.includes("search-result") && window.innerWidth > 767
 }
 
 var lastActiveTab = 'Tab 1';
-var activeFilter = getItemWithExpiration('filterTemp') || "";
+//var activeFilter = getItemWithExpiration('filterTemp') || "";
 const planIds = ['pln_compte-praticien-offre-speciale-500-premiers--893z0o60', 'pln_praticien-belgique-2p70qka'];
 const activePlanIds = JSON.parse(localStorage.getItem('_ms-mem') || '{}').planConnections?.filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId) || [];
+let activeFilter = getItemWithExpiration('filterTemp') 
+    || ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
+    || (activePlanIds.length === 2 
+        && activePlanIds.includes("pln_brique-past-due-os1c808ai") 
+        && activePlanIds.some(id => planIds.includes(id)))
+    ) ? "medecine-generale" : "";
 
 searchBar?.addEventListener("input", async (event) => {
   await inputEvent(searchBar, event);
@@ -87,11 +93,11 @@ async function inputEvent(input, e) {
 
   const query = input.value.trim();
   if (query) {
-    let filterStored = getItemWithExpiration('filterTemp') 
-    || ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
-    || (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id))))
-    ? "medecine-generale" : "";
-    let results = await search(query, filterStored);
+    //let filterStored = getItemWithExpiration('filterTemp') 
+    //|| ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
+    //|| (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id))))
+    //? "medecine-generale" : "";
+    let results = await search(query, activeFilter);
     if (results.length == 0) {
       results = await suggest(query);
     }
@@ -131,11 +137,11 @@ searchBar?.addEventListener("focus", async () => {
    const query = searchBar.value.trim();
 
    if (query) {
-    let filterStored = getItemWithExpiration('filterTemp') 
-    || ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
-    || (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id))))
-    ? "medecine-generale" : "";
-    const results = await search(query, filterStored);
+    //let filterStored = getItemWithExpiration('filterTemp') 
+    //|| ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
+    //|| (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id))))
+    //? "medecine-generale" : "";
+    const results = await search(query, activeFilter);
     if(searchBarMain){
       handleSendResultsToGA("search-bar-focus");
     }else{
@@ -441,17 +447,17 @@ function displayResults(results, input) {
     }
     searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
     searchResult.querySelectorAll('a').forEach((link, index) => {
-    let filterStored = getItemWithExpiration('filterTemp');  
-    if (filterStored) {
+    //let filterStored = getItemWithExpiration('filterTemp');  
+    if (activeFilter) {
       if (index === 0) link.classList.remove('w--current');
-      if (filterStored == transformString(link.innerText)) {
+      if (activeFilter == transformString(link.innerText)) {
           link.classList.add('w--current');
           lastActiveTab = link.getAttribute('data-w-tab');
       }
-    } else if ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0])) || (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id)))) {
-      if (index === 0) link.classList.remove('w--current');
-      if (link.innerText == "Médecine générale") link.classList.add('w--current');
-    }
+   //} else if ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0])) || (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id)))) {
+      //if (index === 0) link.classList.remove('w--current');
+      //if (link.innerText == "Médecine générale") link.classList.add('w--current');
+    //}
       link.addEventListener('click', (el) => {
           el.preventDefault();
           stringifiedFilter = transformString(el.target.innerText);
