@@ -454,6 +454,7 @@ function displayResults(results, input) {
           link.classList.add('w--current');
           lastActiveTab = link.getAttribute('data-w-tab');
       }
+    }
    //} else if ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0])) || (activePlanIds.length === 2 && activePlanIds.includes("pln_brique-past-due-os1c808ai") && activePlanIds.some(id => planIds.includes(id)))) {
       //if (index === 0) link.classList.remove('w--current');
       //if (link.innerText == "Médecine générale") link.classList.add('w--current');
