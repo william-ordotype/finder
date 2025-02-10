@@ -131,7 +131,7 @@ window.addEventListener("resize", () => {
   const inputRect = searchBar?.getBoundingClientRect();
   const div = document.querySelector("#search-results");
   if (div) {
-    div.style.width = `${inputRect.width * 1.5}px`;
+    div.style.width = `${inputRect.width}px`;
     div.style.left = `${inputRect.left}px`;
     div.style.top = `${inputRect.bottom + 5}px`;
   }
@@ -411,7 +411,7 @@ function displayResults(results, input) {
     if (window.matchMedia("(min-width: 480px)").matches){
     resultList.style.cssText =
       "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px;background: #fff;";
-      resultList.style.width = `${inputRect.width}px`;
+      resultList.style.width = `${inputRect.width * 1.5}px`;
       resultList.style.left = `${inputRect.left}px`;
     }
     else {
