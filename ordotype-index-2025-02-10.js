@@ -413,7 +413,7 @@ function displayResults(results, input) {
       
       // Different width handling for nav search bar
       if (input.id === "search-bar-nav") {
-        resultList.style.width = `${inputRect.width * 1.5}px`; // Width is 1.5 times the input width
+        resultList.style.width = `${inputRect.width * 2}px`; // Width is 1.5 times the input width
         resultList.style.left = `${inputRect.left}px`;
       } else {
         resultList.style.width = `${inputRect.width}px`;
