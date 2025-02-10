@@ -408,11 +408,18 @@ function displayResults(results, input) {
 
     const inputRect = input.getBoundingClientRect();
     
-    if (window.matchMedia("(min-width: 480px)").matches){
-    resultList.style.cssText =
-      "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px;background: #fff;";
-      resultList.style.width = `${inputRect.width * 1.5}px`;
-      resultList.style.left = `${inputRect.left}px`;
+    if (window.matchMedia("(min-width: 480px)").matches) {
+      resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
+      
+      // Different width handling for nav search bar
+      if (input.id === "search-bar-nav") {
+        resultList.style.width = `${inputRect.width * 1.5}px`; // Width is 1.5 times the input width
+        resultList.style.right = "0"; // Align to the right
+        resultList.style.left = "auto"; // Remove left positioning
+      } else {
+        resultList.style.width = `${inputRect.width}px`;
+        resultList.style.left = `${inputRect.left}px`;
+      }
     }
     else {
        resultList.style.width = `calc(100% - 2rem)`;
