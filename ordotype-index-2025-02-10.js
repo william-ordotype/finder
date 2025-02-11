@@ -517,7 +517,7 @@ function displayResults(results, input) {
     div.appendChild(img);
     
     resultElement.style.cssText =
-            "text-decoration: none; color: #0c0e16; padding: 8px 8px; display: flex; align-items: center; justify-content:space-between; font-size: 14px;";
+            "text-decoration: none; color: #0c0e16; padding: 8px 8px; display: flex; align-items: center; justify-content:space-between; font-size: 14px; border-radius: 4px;";
 
     resultElement.addEventListener("click", function(event) {
         event.preventDefault();
