@@ -103,9 +103,6 @@ async function inputEvent(input, e) {
     //? "medecine-generale" : "";
     let results = await search(query, activeFilter);
     if (results.length == 0) {
-      results = await suggest(query);
-    }
-    if (results.length == 0) {
       let searchResults = document.getElementById("search-results");
       searchResults.style.background = "#ffffff";
       searchResults.style.padding = "16px";
