@@ -171,13 +171,13 @@ if (searchBtn) {
   });
 } 
 
-if (window.matchMedia("(max-width: 768px)").matches){
-    const searchComponent = document.getElementById('search-component');
-    if (searchComponent) {
-        searchComponent.addEventListener("click", () => {
-        window.location.href = `${baseUrl}/search-result`;
-  });
-}}
+//if (window.matchMedia("(max-width: 768px)").matches){
+//    const searchComponent = document.getElementById('search-component');
+ //   if (searchComponent) {
+  //      searchComponent.addEventListener("click", () => {
+   //     window.location.href = `${baseUrl}/search-result`;
+ // });
+//}}
 
 function keyDownEvent(e) {
   var x = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`));
