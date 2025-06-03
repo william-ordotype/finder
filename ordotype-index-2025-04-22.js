@@ -58,17 +58,6 @@ let activeFilter = (getItemWithExpiration('filterTemp'))
       : ""
     );
 
-document.addEventListener("DOMContentLoaded", function () {
-  if (window.innerWidth < 767) {
-    const input = document.querySelector("#search-bar-main");
-    if (input) {
-      const yOffset = -85; // ajuste si besoin
-      const y = input.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
-    }
-  }
-});
-
 searchBar?.addEventListener("input", async (event) => {
   await inputEvent(searchBar, event);
 });
@@ -149,6 +138,12 @@ async function inputEvent(input, e) {
 //});
 
 searchBar?.addEventListener("focus", async () => {
+    if (window.innerWidth < 767) {
+      const yOffset = -85; 
+      const y = searchBar.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+    
    const query = searchBar.value.trim();
 
    if (query) {
