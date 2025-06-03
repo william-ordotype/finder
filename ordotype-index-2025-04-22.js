@@ -139,10 +139,27 @@ async function inputEvent(input, e) {
 
 searchBar?.addEventListener("focus", async () => {
     if (window.innerWidth < 767) {
-         const navbar = document.querySelector('.navbar_component'); 
-        const navbarHeight = navbar.offsetHeight;
-       const y = searchBar.getBoundingClientRect().top + window.pageYOffset - navbarHeight - 10; 
+    const navbar = document.querySelector('.navbar_component'); 
+
+    const isIOS = /iP(hone|od|ad)/i.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isSafariMobile = isIOS && isSafari;
+
+    const navbarHeight = navbar?.offsetHeight || 0;
+
+    if (isSafariMobile) {
+      searchBar.blur();
+      setTimeout(() => {
+        searchBar.focus();
+        setTimeout(() => {
+          const y = searchBar.getBoundingClientRect().top + window.pageYOffset - navbarHeight - 10;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }, 200);
+      }, 50);
+    } else {
+      const y = searchBar.getBoundingClientRect().top + window.pageYOffset - navbarHeight - 10;
       window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   }
     
    const query = searchBar.value.trim();
