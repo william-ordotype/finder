@@ -139,9 +139,11 @@ async function inputEvent(input, e) {
 
 searchBar?.addEventListener("focus", async () => {
     if (window.innerWidth < 767) {
-      const yOffset = -85; 
-      const y = searchBar.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
+        setTimeout(() => {
+          const yOffset = -85; 
+          const y = searchBar.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }, 300); 
   }
     
    const query = searchBar.value.trim();
