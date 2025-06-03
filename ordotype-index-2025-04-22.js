@@ -139,13 +139,10 @@ async function inputEvent(input, e) {
 
 searchBar?.addEventListener("focus", async () => {
     if (window.innerWidth < 767) {
-          const isIOS = /iP(hone|od|ad)/i.test(navigator.userAgent);
-          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-          const isSafariMobile = isIOS && isSafari;
-        
-          const yOffset = isSafariMobile ? -150 : -85; 
-          const y = searchBar.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
+         const navbar = document.querySelector('.navbar_component'); 
+        const navbarHeight = navbar.offsetHeight;
+       const y = searchBar.getBoundingClientRect().top + window.pageYOffset - navbarHeight - 10; 
+      window.scrollTo({ top: y, behavior: 'smooth' });
   }
     
    const query = searchBar.value.trim();
