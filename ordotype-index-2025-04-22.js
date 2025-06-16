@@ -147,8 +147,9 @@ searchBar?.addEventListener("focus", async (e) => {
         const isSafariMobile = isIOS && isSafari;
         
        if (isSafari) {
-          searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });  
+           setTimeout(() => {
+            searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            }, 1000);
         }
       else {
         searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
