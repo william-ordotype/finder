@@ -137,14 +137,24 @@ async function inputEvent(input, e) {
  // }
 //});
 
-searchBar?.addEventListener("focus", async () => {
+searchBar?.addEventListener("focus", async (e) => {
     if (window.innerWidth < 767) {
         const searchComponent = document.querySelector('#search-component');
         searchComponent.style.scrollMarginTop = '80px';
-       searchComponent.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+
+        const isIOS = /iP(hone|od|ad)/i.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isSafariMobile = isIOS && isSafari;
+        
+       if (isSafariMobile) {
+        e.preventDefault();           
+        searchBar.blur();             
+        searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start'});
+        setTimeout(() => { searchBar.focus(); }, 400);
+      }
+      else {
+        searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
     
    const query = searchBar.value.trim();
