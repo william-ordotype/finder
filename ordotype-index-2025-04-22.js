@@ -139,8 +139,9 @@ async function inputEvent(input, e) {
 
 searchBar?.addEventListener("focus", async () => {
     if (window.innerWidth < 767) {
-        searchBar.style.scrollMarginTop = '10px';
-       searchBar.scrollIntoView({
+        const searchComponent = document.querySelector('#search-component');
+        searchComponent.style.scrollMarginTop = '80px';
+       searchComponent.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
         });
