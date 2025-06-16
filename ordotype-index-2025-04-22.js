@@ -146,12 +146,9 @@ searchBar?.addEventListener("focus", async (e) => {
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         const isSafariMobile = isIOS && isSafari;
         
-       if (isSafariMobile) {
+       if (isSafari) {
           setTimeout(() => {
-            searchComponent.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
-            });
+            searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 500); 
         }
       else {
