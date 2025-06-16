@@ -147,10 +147,13 @@ searchBar?.addEventListener("focus", async (e) => {
         const isSafariMobile = isIOS && isSafari;
         
        if (isSafariMobile) {
-        e.preventDefault();           
-        searchBar.blur();             
-        searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start'});
-        setTimeout(() => { searchBar.focus(); }, 400);
+        const handleScrollFocus = () => {
+            searchBar.blur();
+            searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => { searchBar.focus(); }, 400);
+        };
+        searchBar.addEventListener('touchstart', handleScrollFocus, { once: true });
+        searchBar.addEventListener('click', handleScrollFocus, { once: true });
       }
       else {
         searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
