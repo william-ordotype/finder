@@ -149,7 +149,7 @@ searchBar?.addEventListener("focus", async (e) => {
        if (isSafari) {
           searchBar.blur();
           searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          setTimeout(() => { searchBar.focus(); }, 300);   
+          searchBar.focus();   
         }
       else {
         searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
