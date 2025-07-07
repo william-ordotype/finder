@@ -149,6 +149,7 @@ searchBar?.addEventListener("focus", async (e) => {
        if (isSafari) {
            setTimeout(() => {
             searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            window.scrollBy(0, -60);
             }, 100);
         }
       else {
