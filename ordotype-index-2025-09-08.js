@@ -341,9 +341,7 @@ function displayResults(results, input) {
         resultList.style.left = `${inputRect.left}px`;
       }
     } else {
-       resultList.style.width = `calc(100% - 2rem)`;
-       resultList.style.marginLeft = '1rem';
-       resultList.style.marginRight = '1rem';
+       resultList.style.width = `calc(100% - 1rem)`;
     }
     resultList.style.position = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "absolute" : "fixed";
     resultList.style.top =
