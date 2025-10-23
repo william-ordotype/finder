@@ -138,35 +138,54 @@ async function inputEvent(input, e) {
 }
 
 searchBar?.addEventListener("focus", async (e) => {
-    if (window.innerWidth < 767) {
-        const searchComponent = document.querySelector('#search-component');
-        searchComponent.style.scrollMarginTop = '80px';
+  const isMobile = window.innerWidth < 767;
 
-        const isIOS = /iP(hone|od|ad)/i.test(navigator.userAgent);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        if (isSafari) {
-           setTimeout(() => {
-             searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
-             window.scrollBy(0, 100);
-           }, 100);
-        } else {
-          searchComponent.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-    
-   const query = searchBar.value.trim();
+  const container =
+    e?.target?.closest("#search-component, .search-component") ||
+    document.getElementById("search-component");
 
-   if (query) {
-    const results = await search(query, activeFilter);
-    if (searchBarMain){
-      handleSendResultsToGA("search-bar-focus");
+  if (isMobile && container) {
+    container.style.scrollMarginTop = "80px";
+
+    const isIOS = /iP(hone|od|ad)/i.test(navigator.userAgent);
+    const isSafari = /^(?!.*(chrome|android)).*safari/i.test(navigator.userAgent);
+
+    const doScroll = () => {
+      container.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollBy(0, 100);
+    };
+
+    if (isSafari || isIOS) {
+      setTimeout(doScroll, 100);
     } else {
-      handleSendResultsToGA("search-bar-nav-focus");
+      doScroll();
     }
-    displayResults(results, searchBar);
-   }
+  }
+
+  const input = e?.target ?? searchBar;
+  const query = input?.value?.trim() || "";
+  if (!query) return;
+
+  let results = [];
+  try {
+    const r = await search(query, activeFilter);
+    results = Array.isArray(r) ? r : (r ? [r] : []);
+  } catch (err) {
+    console.error("search() failed on focus:", err);
+    results = [];
+  }
+
+  if (typeof searchBarMain !== "undefined" && searchBarMain) {
+    handleSendResultsToGA("search-bar-focus");
+  } else {
+    handleSendResultsToGA("search-bar-nav-focus");
+  }
+
+  if (results.length > 0) {
+    displayResults(results, input);
+  }
 });
+
 
 searchBar?.addEventListener("keydown", (e) => {
   if (e.key === 'Enter') {
