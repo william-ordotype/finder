@@ -152,7 +152,9 @@ searchBar?.addEventListener("focus", async (e) => {
 
     const doScroll = () => {
       container.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.scrollBy(0, 100);
+       if (isSafari || isIOS) {
+        window.scrollBy(0, 100);
+      }
     };
 
     if (isSafari || isIOS) {
