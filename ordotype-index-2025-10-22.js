@@ -369,8 +369,10 @@ function displayResults(results, input) {
   
   if (resultList) {
     var searchResult = resultList.querySelector('#filter');
-    searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
-    searchResultInner.innerHTML = "";
+    if (searchResult) {
+      const searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
+      if (searchResultInner) searchResultInner.innerHTML = "";
+    }
   }
   
   if (!resultList) {
