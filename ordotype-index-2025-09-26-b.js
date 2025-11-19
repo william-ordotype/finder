@@ -343,7 +343,8 @@ async function search(query, filter, page) {
               field: "Slug",
               fuzzy: {
                 fuzziness: 2
-              }
+              },
+              size: 10,
             }
           }
         },
