@@ -101,13 +101,14 @@ async function inputEvent(input, e) {
   }
 
   let results = [];
+  let fromSuggest = false;
+  
   try {
-   const { results, fromSuggest } = await search(query, activeFilter);
-    // Normalize to an array
-    results = Array.isArray(r) ? r : (r ? [r] : []);
+    const r = await search(query, activeFilter);
+    results = r.results ?? [];
+    fromSuggest = r.fromSuggest ?? false;
   } catch (err) {
     console.error("search() failed:", err);
-    results = [];
   }
 
   // If user is deleting, optionally clear the container early
