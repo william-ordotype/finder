@@ -377,7 +377,7 @@ async function search(query, filter) {
     const options = response.data.suggest?.med_suggest?.[0]?.options ?? [];
 
     return options.map((opt) => ({
-      Name: opt.text,                         
+      Name: opt._source?.Name,                         
       Slug: opt._source?.Slug,
       Img: opt._source?.Logo_for_finder_URL,
       wordingLogo: opt._source?.Wording_Logo,
