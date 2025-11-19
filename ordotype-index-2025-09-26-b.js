@@ -356,7 +356,7 @@ async function search(query, filter) {
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "ApiKey WUdmSlhKa0J5bkFkTnVyZWNIMmk6YzlWel9vS09TMUtGR0k2V1NRZVJsZw==",
+            "ApiKey SEdpeW1wb0J5bkFkTnVyZVp3TUs6bTFuUDRhdDNRTEdnbWtrSEV4a3QwUQ==",
         },
       }
     );
@@ -545,7 +545,7 @@ async function updateQueryCount(query, results = true, click = true) {
     const searchHeaders = {
       "Content-Type": "application/json",
       Authorization:
-        "ApiKey WUdmSlhKa0J5bkFkTnVyZWNIMmk6YzlWel9vS09TMUtGR0k2V1NRZVJsZw==",
+        "ApiKey SVdpX21wb0J5bkFkTnVyZTJ3TWQ6RkExR1VIXzdTMG1lN0lURUdYVHBfQQ==",
     };
     const response = await axios.get(searchUrl, { headers: searchHeaders });
     const hits = response.data.hits.total.value;
