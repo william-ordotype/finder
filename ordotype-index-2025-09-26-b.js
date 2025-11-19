@@ -67,17 +67,25 @@ searchBar?.addEventListener('blur', () => {
 });
 
 async function clickEvent(activeFilter) {
-  const searchBar = searchBarMain || searchBarNav
+  const searchBar = searchBarMain || searchBarNav;
   let query = searchBar.value.trim();
-  let results = await search(query, activeFilter);
-  if (results.length == 0) {
-      let searchResults = document.getElementById("search-results");
-      let searchResultInner = searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
-      searchResultInner.innerHTML =
-        `Pas de résultats pour "${query}", dans ce module.`;
-      return true;
+
+  const { results, fromSuggest } = await search(query, activeFilter);
+
+  const searchResults = document.getElementById("search-results");
+
+  if (results.length === 0) {
+    let searchResultInner =
+      searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
+
+    searchResultInner.innerHTML =
+      `Pas de résultats pour "${query}", dans ce module.`;
+
+    return true;
   }
-  displayResults(results, searchBar);
+
+  // Avec la nouvelle signature
+  displayResults(results, searchBar, fromSuggest);
 }
 
 async function inputEvent(input, e) {
@@ -94,7 +102,7 @@ async function inputEvent(input, e) {
 
   let results = [];
   try {
-    const r = await search(query, activeFilter);
+   const { results, fromSuggest } = await search(query, activeFilter);
     // Normalize to an array
     results = Array.isArray(r) ? r : (r ? [r] : []);
   } catch (err) {
@@ -133,7 +141,7 @@ async function inputEvent(input, e) {
   }
 
   handleSendResultsToGA(input.id);
-  displayResults(results, input);
+  displayResults(results, input, fromSuggest);
   return true;
 }
 
@@ -152,7 +160,7 @@ searchBar?.addEventListener("focus", async (e) => {
 
     const doScroll = () => {
       container.scrollIntoView({ behavior: "smooth", block: "start" });
-       if (isSafari || isIOS) {
+      if (isSafari || isIOS) {
         window.scrollBy(0, 100);
       }
     };
@@ -168,14 +176,7 @@ searchBar?.addEventListener("focus", async (e) => {
   const query = input?.value?.trim() || "";
   if (!query) return;
 
-  let results = [];
-  try {
-    const r = await search(query, activeFilter);
-    results = Array.isArray(r) ? r : (r ? [r] : []);
-  } catch (err) {
-    console.error("search() failed on focus:", err);
-    results = [];
-  }
+  const { results, fromSuggest } = await search(query, activeFilter);
 
   if (typeof searchBarMain !== "undefined" && searchBarMain) {
     handleSendResultsToGA("search-bar-focus");
@@ -184,9 +185,10 @@ searchBar?.addEventListener("focus", async (e) => {
   }
 
   if (results.length > 0) {
-    displayResults(results, input);
+    displayResults(results, input, fromSuggest);
   }
 });
+
 
 
 searchBar?.addEventListener("keydown", (e) => {
@@ -362,15 +364,14 @@ async function search(query, filter, page) {
     );
       
    const hits = response.data.hits.hits;
+   const suggestions = response.data.suggest?.med_suggest?.[0]?.options ?? [];
 
-    const results =
-      hits.length > 0
-        ? hits
-        : response.data.suggest?.med_suggest?.[0]?.options ?? [];
+    const usingSuggestions = hits.length === 0 && suggestions.length > 0;
+    const rawResults = usingSuggestions ? suggestions : hits;
 
     page && displayPagination(response.data.hits.total.value, query);
 
-    return results.map((item) => {
+    const results = rawResults.map((item) => {
       const src = item._source ?? {};
       return {
         Name: src.Name,
@@ -380,13 +381,16 @@ async function search(query, filter, page) {
         filtres: src.Filtres,
       };
     });
+
+    return { results, fromSuggest: usingSuggestions };
   } catch (error) {
     console.error(error);
+    return { results: [], fromSuggest: false };
   }
 }
 
 // Display the search results
-function displayResults(results, input) {
+function displayResults(results, input, fromSuggest) {
   let resultList = document.getElementById("search-results");
   let searchResultInner = "";
   
@@ -467,6 +471,17 @@ function displayResults(results, input) {
     resultList.appendChild(searchResult);
     document.querySelector("body").appendChild(resultList);
   }
+
+  if (fromSuggest) {
+    const info = document.createElement("div");
+    info.textContent = `0 résultats trouvés pour "${input.value}". Voici quelques suggestions :`;
+    info.style.padding = "4px 8px";
+    info.style.fontSize = "13px";
+    info.style.color = "#555";
+    info.style.marginBottom = "4px";
+    searchResultInner.appendChild(info);
+  }
+  
 
   results.forEach((result, index) => {
     if (result.filtres.includes("only")){
