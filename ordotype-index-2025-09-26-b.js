@@ -278,7 +278,7 @@ function getItemWithExpiration(key) {
   return item.value;
 }
 
-async function search(query, filter) {
+async function search(query, filter, page) {
   try {
     const response = await axios.post(
       `${ES_URL}/_search`,
@@ -361,28 +361,25 @@ async function search(query, filter) {
       }
     );
       
-    const hits = response.data.hits.hits;
+   const hits = response.data.hits.hits;
 
-    if (hits.length > 0) {
-      return hits.map((hit) => ({
-        Name: hit._source.Name,
-        Slug: hit._source.Slug,
-        Img: hit._source.Logo_for_finder_URL,
-        wordingLogo: hit._source.Wording_Logo,
-        filtres: hit._source.Filtres
-      }));
-    }
+    const results =
+      hits.length > 0
+        ? hits
+        : response.data.suggest?.med_suggest?.[0]?.options ?? [];
 
-    // 🔹 Fallback : utiliser le suggest si aucun hit
-    const options = response.data.suggest?.med_suggest?.[0]?.options ?? [];
+    page && displayPagination(response.data.hits.total.value, query);
 
-    return options.map((opt) => ({
-      Name: opt._source?.Name,                         
-      Slug: opt._source?.Slug,
-      Img: opt._source?.Logo_for_finder_URL,
-      wordingLogo: opt._source?.Wording_Logo,
-      filtres: opt._source?.Filtres
-    }));
+    return results.map((item) => {
+      const src = item._source ?? {};
+      return {
+        Name: src.Name,
+        Slug: src.Slug,
+        Img: src.Logo_for_finder_URL,
+        wordingLogo: src.Wording_Logo,
+        filtres: src.Filtres,
+      };
+    });
   } catch (error) {
     console.error(error);
   }
