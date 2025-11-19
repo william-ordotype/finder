@@ -110,8 +110,32 @@ function displayPagination(totalResults, query){
 
 async function displayAll(){
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
-    let results = await search(query, activeFilter, page);
+  
+     const { results = [], fromSuggest = false } = await search(query, activeFilter, page);
+  
     resultList.innerHTML = '';
+
+    // Aucun résultat et aucune suggestion
+    if (results.length === 0) {
+      const msg = document.createElement("div");
+      msg.textContent = `Pas de résultats pour "${query}". Vérifiez l'orthographe de votre recherche.`;
+      msg.style.padding = "8px 0";
+      msg.style.fontSize = "16px";
+      msg.style.color = "#555";
+      resultList.appendChild(msg);
+      return;
+    }
+  
+    // Cas "fallback sur les suggestions"
+    if (fromSuggest) {
+      const info = document.createElement("div");
+      info.textContent = `0 résultats trouvés pour "${query}". Voici quelques suggestions :`;
+      info.style.padding = "4px 0 8px";
+      info.style.fontSize = "14px";
+      info.style.color = "#555";
+      resultList.appendChild(info);
+    }
+  
     results.forEach((result, index) => {
         if (result.filtres.includes("only")){
           let filter;
