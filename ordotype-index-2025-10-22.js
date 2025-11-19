@@ -282,7 +282,7 @@ async function search(query, filter) {
   try {
     const response = await axios.post(
       `${ES_URL}/_search`,
-      {
+       {
         query : {
           function_score : {
             query: {
@@ -305,7 +305,7 @@ async function search(query, filter) {
                           }
                         },
                         { fuzzy: { Name: { value: query, fuzziness: "AUTO" } } },
-                        { fuzzy: { Alias: { value: query, fuzziness: "AUTO" } } }
+                        { fuzzy: { Alias: { value: query, fuzziness: "AUTO" } } },
                       ]
                     }
                   }
@@ -326,10 +326,21 @@ async function search(query, filter) {
               }
             },
             field_value_factor: {
-              field: "importance",
+              field: "Importance",
               factor: 1.5,
               modifier: "none",
               missing : 1
+            }
+          }
+        },
+        suggest: {
+          med_suggest: {
+            prefix: query,
+            completion: {
+              field: "Slug",
+              fuzzy: {
+                fuzziness: 2
+              }
             }
           }
         },
@@ -350,12 +361,27 @@ async function search(query, filter) {
       }
     );
       
-    return response.data.hits.hits.map((hit) => ({
-      Name: hit._source.Name,
-      Slug: hit._source.Slug,
-      Img: hit._source.Logo_for_finder_URL,
-      wordingLogo: hit._source.Wording_Logo,
-      filtres: hit._source.Filtres
+    const hits = response.data.hits.hits;
+
+    if (hits.length > 0) {
+      return hits.map((hit) => ({
+        Name: hit._source.Name,
+        Slug: hit._source.Slug,
+        Img: hit._source.Logo_for_finder_URL,
+        wordingLogo: hit._source.Wording_Logo,
+        filtres: hit._source.Filtres
+      }));
+    }
+
+    // 🔹 Fallback : utiliser le suggest si aucun hit
+    const options = response.data.suggest?.med_suggest?.[0]?.options ?? [];
+
+    return options.map((opt) => ({
+      Name: opt.text,                         
+      Slug: opt._source?.Slug,
+      Img: opt._source?.Logo_for_finder_URL,
+      wordingLogo: opt._source?.Wording_Logo,
+      filtres: opt._source?.Filtres
     }));
   } catch (error) {
     console.error(error);
