@@ -316,13 +316,22 @@ async function search(query, filter, page) {
                             },
                           },
                         },
+                            {
+                          match_phrase_prefix: {
+                            Alias: {
+                              query: query,
+                              slop: 0,
+                              max_expansions: 20,
+                              boost: 1.5,
+                            },
+                          },
+                        },
                         {
                           match: {
                             Alias: {
                               query: query,
                               operator: "OR", // au moins un mot-clé
-                              fuzziness: "1",
-                              boost: 1.5,
+                              fuzziness: nameFuzziness,
                             },
                           },
                         },
