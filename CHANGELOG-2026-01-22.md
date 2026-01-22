@@ -53,6 +53,59 @@ Subsequently, calling `.appendChild()` on a string caused the TypeError.
 
 ---
 
+## search-result-filter-2026-01-22.js
+
+### Issues Fixed
+Multiple potential `TypeError` errors when DOM elements don't exist or search fails.
+
+### Fixes Applied
+
+1. **Line 15-16** - Added null check for pagination div:
+   ```javascript
+   const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
+   if (!paginationDiv) return;
+   ```
+
+2. **Line 100** - Fixed missing `event` parameter in click handler:
+   ```javascript
+   // Before
+   link.addEventListener('click', () => {
+     event.preventDefault();  // 'event' was undefined!
+
+   // After
+   link.addEventListener('click', (event) => {
+     event.preventDefault();
+   ```
+
+3. **Line 112-113** - Added null check for resultList:
+   ```javascript
+   let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
+   if (!resultList) return;
+   ```
+
+4. **Line 114** - Added try/catch for search() and null check:
+   ```javascript
+   let searchResult;
+   try {
+     searchResult = await search(query, activeFilter, page);
+   } catch (err) {
+     console.error("search() failed:", err);
+     return;
+   }
+   const { results = [], fromSuggest = false } = searchResult || {};
+   ```
+
+5. **Line 140** - Added null check for `result.filtres`:
+   ```javascript
+   // Before
+   if (result.filtres.includes("only"))
+
+   // After
+   if (result.filtres && result.filtres.includes("only"))
+   ```
+
+---
+
 ## search-result-2026-01-22.js
 
 ### Issues Fixed
