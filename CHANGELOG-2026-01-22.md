@@ -1,4 +1,6 @@
-# Changelog - ordotype-index-2026-01-22.js
+# Changelog - 2026-01-22
+
+## ordotype-index-2026-01-22.js
 
 ## Bug Fix: TypeError searchResultInner.appendChild is not a function
 
@@ -49,9 +51,85 @@ Subsequently, calling `.appendChild()` on a string caused the TypeError.
    ```
    This prevents `TypeError: can't access property "cloneNode", searchResultOriginal is null` when the template element doesn't exist in the DOM.
 
+---
+
+## search-result-2026-01-22.js
+
+### Issues Fixed
+Multiple potential `TypeError: Cannot read property of null` errors when DOM elements don't exist.
+
+### Fixes Applied
+
+1. **Line 33** - Added optional chaining for `#search-btn`:
+   ```javascript
+   // Before
+   document.getElementById("search-btn").addEventListener('click', ...
+
+   // After
+   document.getElementById("search-btn")?.addEventListener('click', ...
+   ```
+
+2. **Line 34** - Added null checks for search bar value:
+   ```javascript
+   // Before
+   const query = document.getElementById("search-bar-main").value.trim()
+
+   // After
+   const query = document.getElementById("search-bar-main")?.value?.trim();
+   if (query) window.location.href = ...
+   ```
+
+3. **Line 150-152** - Added null check for `#search-title`:
+   ```javascript
+   // Before
+   let searchTitle = document.getElementById('search-title')
+   searchTitle.innerHTML = '';
+
+   // After
+   let searchTitle = document.getElementById('search-title');
+   if (searchTitle) {
+     searchTitle.innerHTML = ...
+   }
+   ```
+
+4. **Line 162** - Return empty array on error in `searchAll()`:
+   ```javascript
+   } catch (error) {
+     console.error(error);
+     return [];  // Added - prevents undefined.length error
+   }
+   ```
+
+5. **Line 168** - Added null check for `#pagination`:
+   ```javascript
+   const paginationDiv = document.getElementById('pagination');
+   if (!paginationDiv) return;
+   ```
+
+6. **Line 253-258** - Added null checks in `displayAll()`:
+   ```javascript
+   // Before
+   if (results.length == 0)
+
+   // After
+   if (!results || results.length === 0)
+
+   // Also added:
+   if (!resultList) return;
+   ```
+
+7. **Line 256** - Added null check for `#suggestions`:
+   ```javascript
+   const suggestionsEl = document.getElementById('suggestions');
+   if (suggestionsEl) suggestionsEl.innerText = '';
+   ```
+
+---
+
 ### Testing
 Deploy to staging and test:
 - Search with results
 - Search with no results (triggers suggestions via `fromSuggest`)
 - Filter by category then search
 - Focus on search bar with existing query
+- Test on /search-result page with pagination
