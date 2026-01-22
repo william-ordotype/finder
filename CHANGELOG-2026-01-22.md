@@ -42,6 +42,13 @@ Subsequently, calling `.appendChild()` on a string caused the TypeError.
    ```
    This prevents a potential `Cannot read property 'includes' of undefined` error.
 
+4. **Null check for `searchResultOriginal` (line 471)**
+   ```javascript
+   let searchResultOriginal = searchBarMain ? document.querySelector('#search-result') : document.querySelector('#search-result-nav');
+   if (!searchResultOriginal) return;
+   ```
+   This prevents `TypeError: can't access property "cloneNode", searchResultOriginal is null` when the template element doesn't exist in the DOM.
+
 ### Testing
 Deploy to staging and test:
 - Search with results

@@ -468,6 +468,7 @@ function displayResults(results, input, fromSuggest) {
     resultList.style.background = "white";
 
     let searchResultOriginal = searchBarMain ? document.querySelector('#search-result') : document.querySelector('#search-result-nav');
+    if (!searchResultOriginal) return;
     var searchResult = searchResultOriginal.cloneNode(true);
     searchResult.id = "filter";
     searchResult.style.display = "block";
