@@ -34,7 +34,13 @@ if (window.location.pathname.includes("search-result") && window.innerWidth > 76
 var lastActiveTab = 'Tab 1';
 //var activeFilter = getItemWithExpiration('filterTemp') || "";
 const planIds = ['pln_compte-praticien-offre-speciale-500-premiers--893z0o60', 'pln_praticien-belgique-2p70qka'];
-const activePlanIds = JSON.parse(localStorage.getItem('_ms-mem') || '{}').planConnections?.filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId) || [];
+var memberData;
+try {
+  memberData = JSON.parse(localStorage.getItem('_ms-mem') || '{}');
+} catch (e) {
+  memberData = {};
+}
+const activePlanIds = memberData.planConnections?.filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId) || [];
 let activeFilter = (getItemWithExpiration('filterTemp')) 
     || (
       ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
