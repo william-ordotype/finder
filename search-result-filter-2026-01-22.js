@@ -112,6 +112,7 @@ function displayPagination(totalResults, query){
 async function displayAll(){
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
+    if (!query) return;
 
     let searchResult;
     try {
