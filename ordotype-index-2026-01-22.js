@@ -117,24 +117,40 @@ async function inputEvent(input, e) {
     console.error("search() failed:", err);
   }
 
-  // If user is deleting, optionally clear the container early
-  if (inputType === "deleteContentBackward") {
-    document.querySelector("#search-results")?.remove();
-  }
-
   // No results path
   if (results.length === 0) {
-    const searchResults = document.getElementById("search-results") || (() => {
-      const el = document.createElement("div");
-      el.id = "search-results";
-      input.parentElement?.appendChild(el);
-      return el;
-    })();
+    const existing = document.getElementById("search-results");
 
-    searchResults.style.background = "#ffffff";
-    searchResults.style.padding = "16px";
+    // If previous results are displayed, keep them visible (better UX than "no results")
+    if (existing && existing.querySelector('#filter')) {
+      if (inputType !== "deleteContentBackward" && query.length > 3) {
+        updateQueryCount(query, false);
+      }
+      return true;
+    }
+
+    // No previous results — show "no results" message
+    existing?.remove();
+
+    const searchResults = document.createElement("div");
+    searchResults.id = "search-results";
+
+    const inputRect = input.getBoundingClientRect();
+    if (window.matchMedia("(min-width: 480px)").matches) {
+      searchResults.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 16px; background: #fff;";
+      searchResults.style.width = input.id === "search-bar-nav" ? `${inputRect.width * 2}px` : `${inputRect.width}px`;
+      searchResults.style.left = `${inputRect.left}px`;
+    } else {
+      searchResults.style.cssText = "width: calc(100% - 1rem); margin-left: .5rem; margin-right: .5rem; padding: 16px; background: #fff;";
+    }
+    var isMain = input.id === "search-bar-main" || input.id === "search-bar-hp";
+    searchResults.style.position = isMain ? "absolute" : "fixed";
+    searchResults.style.top = isMain ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
+    searchResults.style.zIndex = isMain ? "9999" : "10000";
+
     searchResults.innerHTML =
       `Pas de résultats pour "${query}". Vérifiez l'orthographe de votre recherche`;
+    document.body.appendChild(searchResults);
 
     if (inputType !== "deleteContentBackward" && query.length > 3) {
       updateQueryCount(query, false);
@@ -442,6 +458,9 @@ function displayResults(results, input, fromSuggest) {
     if(searchResult){
       searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
       searchResultInner.innerHTML = "";
+    } else {
+      resultList.remove();
+      resultList = null;
     }
   }
   
