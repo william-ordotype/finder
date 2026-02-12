@@ -112,7 +112,14 @@ function displayPagination(totalResults, query){
 async function displayAll(){
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
-    if (!query) return;
+    if (!query) {
+      resultList.innerHTML = '';
+      const msg = document.createElement("div");
+      msg.textContent = "Saisissez un terme dans la barre de recherche.";
+      msg.style.cssText = "padding: 8px 0; font-size: 16px; color: #555;";
+      resultList.appendChild(msg);
+      return;
+    }
 
     let searchResult;
     try {
