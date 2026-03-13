@@ -1,7 +1,7 @@
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_INDEX_STAGING = "ordotype-index-2025-12-16";
-const ES_INDEX_PRODUCTION = "ordotype-index-2025-12-16";
+const ES_INDEX_STAGING = "ordotype-index-2026-03-13e";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-03-13e";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
@@ -363,7 +363,7 @@ async function search(query, filter, page) {
                               query: query,
                               slop: 0,
                               max_expansions: 20,
-                              boost: 2.5,
+                              boost: 5,
                             },
                           },
                         },
@@ -373,7 +373,7 @@ async function search(query, filter, page) {
                               query: query,
                               operator: "OR",
                               fuzziness: nameFuzziness,
-                              boost: 2,
+                              boost: 4,
                             },
                           },
                         },
