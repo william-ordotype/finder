@@ -683,19 +683,21 @@ async function updateQueryCount(query, results = true, click = true) {
       const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${queryId}`;
       let updateData = {};
 
+      var now = new Date().toISOString();
+
       if (!click) {
         if (hit._source.hasOwnProperty('noClick')) {
           updateData = {
-            script: { source: "ctx._source.noClick += params.count", params: { count: 1 } }
+            script: { source: "ctx._source.noClick += params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
           };
         } else {
           updateData = {
-            script: { source: "ctx._source.noClick = params.count", params: { count: 1 } }
+            script: { source: "ctx._source.noClick = params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
           };
         }
       } else {
         updateData = {
-          script: { source: "ctx._source.count += params.count", params: { count: 1 } }
+          script: { source: "ctx._source.count += params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
         };
         if (!results) {
           if (hit._source.hasOwnProperty('noResults')) {
@@ -709,7 +711,8 @@ async function updateQueryCount(query, results = true, click = true) {
       await axios.post(updateUrl, updateData, { headers: searchHeaders });
     } else {
       const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_doc`;
-      const indexData = { query, count: 1 };
+      var nowNew = new Date().toISOString();
+      const indexData = { query, count: 1, createdAt: nowNew, lastUpdated: nowNew };
       if (!results) indexData.noResults = 1;
       await axios.post(indexUrl, indexData, { headers: searchHeaders });
     }
