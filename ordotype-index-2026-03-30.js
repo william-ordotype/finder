@@ -130,11 +130,13 @@ async function inputEvent(input, e) {
   }
 
   // No results path
+  var isBlocked = BLOCKED_QUERIES.has(normalizeForBlocklist(query));
   if (results.length === 0) {
     const existing = document.getElementById("search-results");
 
     // If previous results are displayed, keep them visible (better UX than "no results")
-    if (existing && existing.querySelector('#filter')) {
+    // EXCEPT when the query is explicitly blocked (no matching fiche exists)
+    if (!isBlocked && existing && existing.querySelector('#filter')) {
       if (inputType !== "deleteContentBackward" && query.length > 3) {
         updateQueryCount(query, false);
       }
