@@ -1,7 +1,7 @@
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 const ES_INDEX_STAGING = "ordotype-index-2026-03-30-d";
-const ES_INDEX_PRODUCTION = "ordotype-index-2026-03-13e";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-03-30-d";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
