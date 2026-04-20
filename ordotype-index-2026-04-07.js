@@ -80,7 +80,10 @@ searchBar?.addEventListener('blur', () => {
    var query = searchBar.value.trim()
 
    setTimeout(function() {
-      query.length > 0 && updateQueryCount(query, true, false);
+      if (query.length > 0) {
+        updateQueryCount(query, true, false);
+        window.dataLayer.push({ event: "search_used", element: searchBar.id });
+      }
   }, 2000)
 });
 
