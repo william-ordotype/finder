@@ -1,7 +1,7 @@
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_INDEX_STAGING = "ordotype-index-2026-04-28-b";
-const ES_INDEX_PRODUCTION = "ordotype-index-2026-04-28-b";
+const ES_INDEX_STAGING = "ordotype-index-2026-04-28-c";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-04-28-c";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
@@ -74,12 +74,12 @@ searchBar?.addEventListener("input", (event) => {
   searchDebounceTimer = setTimeout(() => inputEvent(searchBar, event), delay);
 });
 
-function handleSendResultsToGA(element) {
-   window.dataLayer.push({ event: "show_search_results", element });
+function handleSendResultsToGA(element, query, resultCount) {
+   window.dataLayer.push({ event: "show_search_results", element, query: query || "", result_count: resultCount ?? 0 });
 }
 
-function handleSendClickResultToGA(element) {
-  window.dataLayer.push({ event: "click_search_results", element });
+function handleSendClickResultToGA(element, query, slug, position) {
+  window.dataLayer.push({ event: "click_search_results", element, query: query || "", clicked_slug: slug || "", position: position ?? 0 });
 }
 
 searchBar?.addEventListener('blur', () => {
@@ -88,7 +88,7 @@ searchBar?.addEventListener('blur', () => {
    setTimeout(function() {
       if (query.length > 0) {
         updateQueryCount(query, true, false);
-        window.dataLayer.push({ event: "search_used", element: searchBar.id });
+        window.dataLayer.push({ event: "search_used", element: searchBar.id, query: query });
       }
   }, 2000)
 });
@@ -186,7 +186,7 @@ async function inputEvent(input, e) {
     updateQueryCount(query);
   }
 
-  handleSendResultsToGA(input.id);
+  handleSendResultsToGA(input.id, query, results.length);
   displayResults(results, input, fromSuggest);
   return true;
 }
@@ -225,9 +225,9 @@ searchBar?.addEventListener("focus", async (e) => {
   const { results, fromSuggest } = await search(query, activeFilter);
 
   if (typeof searchBarMain !== "undefined" && searchBarMain) {
-    handleSendResultsToGA("search-bar-focus");
+    handleSendResultsToGA("search-bar-focus", query, results.length);
   } else {
-    handleSendResultsToGA("search-bar-nav-focus");
+    handleSendResultsToGA("search-bar-nav-focus", query, results.length);
   }
 
   if (results.length > 0) {
@@ -662,7 +662,7 @@ function displayResults(results, input, fromSuggest) {
 
     resultElement.addEventListener("click", function(event) {
       event.preventDefault();
-      handleSendClickResultToGA(input.id);
+      handleSendClickResultToGA(input.id, input.value || "", result.Slug, index + 1);
       window.location.href = `${baseUrl}/pathologies/${result.Slug}`;
     });
 
