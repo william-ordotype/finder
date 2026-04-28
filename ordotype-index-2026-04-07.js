@@ -64,8 +64,14 @@ let activeFilter = (getItemWithExpiration('filterTemp'))
       : ""
     );
 
-searchBar?.addEventListener("input", async (event) => {
-  await inputEvent(searchBar, event);
+// Adaptive debounce: instant for short queries (1-2 chars) so single-letter
+// browsing feels live; small delay for longer queries to coalesce fast typing.
+let searchDebounceTimer;
+searchBar?.addEventListener("input", (event) => {
+  clearTimeout(searchDebounceTimer);
+  const len = searchBar.value.trim().length;
+  const delay = len <= 2 ? 0 : 150;
+  searchDebounceTimer = setTimeout(() => inputEvent(searchBar, event), delay);
 });
 
 function handleSendResultsToGA(element) {
