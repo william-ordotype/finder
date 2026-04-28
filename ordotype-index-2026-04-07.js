@@ -476,6 +476,7 @@ async function search(query, filter, page) {
             },
           },
         },
+        _source: ["Name", "Slug", "Logo_for_finder_URL", "Wording_Logo", "Filtres"],
         size: page ? 20 : 10,
         from: page ? page * 20 - 20 : 0,
         sort: [
