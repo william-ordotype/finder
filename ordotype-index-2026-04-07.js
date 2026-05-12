@@ -317,7 +317,20 @@ function setItemWithExpiration(key, value, expirationInHours = 24) {
 function getItemWithExpiration(key) {
   const itemStr = localStorage.getItem(key);
   if (!itemStr) return null;
-  const item = JSON.parse(itemStr);
+  let item;
+  try {
+    item = JSON.parse(itemStr);
+  } catch {
+    // Self-heal: corrupted or pre-versioned raw-string value would otherwise
+    // throw on init and break the entire finder for this user until they
+    // manually clear localStorage in DevTools.
+    localStorage.removeItem(key);
+    return null;
+  }
+  if (!item || typeof item.expiration !== 'number') {
+    localStorage.removeItem(key);
+    return null;
+  }
   const now = new Date();
   if (now.getTime() > item.expiration) {
     localStorage.removeItem(key);
