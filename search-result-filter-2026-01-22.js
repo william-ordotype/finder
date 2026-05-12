@@ -221,8 +221,15 @@ async function displayAll(){
   }
 
 
-  //document.addEventListener("DOMContentLoaded", () => {
-  $(document).ready(function() {
+  function onReady(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn);
+    } else {
+      fn();
+    }
+  }
+
+  onReady(function() {
     document.querySelectorAll('#filter a').forEach((link) => {
         if (transformString(link.innerText) == activeFilter) {
           activeTab = link.getAttribute('data-w-tab');
