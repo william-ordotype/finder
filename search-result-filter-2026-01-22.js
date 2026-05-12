@@ -231,10 +231,6 @@ async function displayAll(){
 
   onReady(function() {
     document.querySelectorAll('#filter a').forEach((link) => {
-        if (transformString(link.innerText) == activeFilter) {
-          activeTab = link.getAttribute('data-w-tab');
-          link.click();
-        }
         link.addEventListener('click', (el) => {
             activeTab = el.currentTarget.getAttribute('data-w-tab');
             stringifiedFilter = transformString(el.target.innerText);
@@ -244,7 +240,18 @@ async function displayAll(){
             displayAll();
         })
     })
-    if (query != null){ 
-   displayAll();
-      }
+
+    // Defer programmatic tab switch + initial render until after Webflow's
+    // w-tabs widget has bound its handlers. Otherwise link.click() silently
+    // no-ops, leaving the visible tab on Tab 1 while results get written to
+    // whichever tab matches the stored filterTemp — looks like "no results".
+    requestAnimationFrame(() => {
+        document.querySelectorAll('#filter a').forEach((link) => {
+            if (transformString(link.innerText) == activeFilter) {
+              activeTab = link.getAttribute('data-w-tab');
+              link.click();
+            }
+        });
+        if (query != null) displayAll();
+    });
   });
