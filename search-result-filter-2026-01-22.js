@@ -271,4 +271,23 @@ async function displayAll(){
         });
         if (query != null) displayAll();
     });
+
+    // Live-refresh the main result list as the user types. We don't piggy-back
+    // on the global `input` listener from ordotype-index-*.js (it fires
+    // `inputEvent`, but which `inputEvent` actually runs depends on script
+    // parse order — and that variant only manages the autocomplete dropdown,
+    // not the /search-result page body). Adaptive debounce mirrors the index
+    // file's pattern (0ms for short queries, 150ms once typing has length).
+    const liveBar = document.getElementById('search-bar-nav') || document.getElementById('search-bar-main');
+    let liveDebounce;
+    liveBar?.addEventListener('input', () => {
+      clearTimeout(liveDebounce);
+      const v = liveBar.value.trim();
+      const delay = v.length <= 2 ? 0 : 150;
+      liveDebounce = setTimeout(() => {
+        query = v;
+        page = 1;
+        displayAll();
+      }, delay);
+    });
   });
