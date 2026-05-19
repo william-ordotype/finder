@@ -272,22 +272,26 @@ async function displayAll(){
         if (query != null) displayAll();
     });
 
-    // Live-refresh the main result list as the user types. We don't piggy-back
-    // on the global `input` listener from ordotype-index-*.js (it fires
-    // `inputEvent`, but which `inputEvent` actually runs depends on script
-    // parse order — and that variant only manages the autocomplete dropdown,
-    // not the /search-result page body). Adaptive debounce mirrors the index
-    // file's pattern (0ms for short queries, 150ms once typing has length).
-    const liveBar = document.getElementById('search-bar-nav') || document.getElementById('search-bar-main');
+    // Live-refresh the main result list as the user types. Bind both bars
+    // because /search-result actually renders both #search-bar-main (the
+    // autofocused, prominently visible one inside .search-block-results) and
+    // #search-bar-nav (the top navbar). The ordotype-index-*.js binding picks
+    // only one based on viewport, so the other bar would otherwise be inert.
+    // Adaptive debounce mirrors the index file's pattern (0ms for short
+    // queries, 150ms once typing has length).
     let liveDebounce;
-    liveBar?.addEventListener('input', () => {
+    const onLiveInput = (bar) => {
       clearTimeout(liveDebounce);
-      const v = liveBar.value.trim();
+      const v = bar.value.trim();
       const delay = v.length <= 2 ? 0 : 150;
       liveDebounce = setTimeout(() => {
         query = v;
         page = 1;
         displayAll();
       }, delay);
+    };
+    ['search-bar-main', 'search-bar-nav'].forEach((id) => {
+      const bar = document.getElementById(id);
+      bar?.addEventListener('input', () => onLiveInput(bar));
     });
   });
