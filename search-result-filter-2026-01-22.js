@@ -229,6 +229,23 @@ async function displayAll(){
     }
   }
 
+  // Local copy so this file works regardless of when ordotype-index-*.js
+  // (which also defines transformString globally) loads relative to this one.
+  // The earlier load-order race threw ReferenceError inside the rAF callback
+  // below, which aborted the initial displayAll() and left /search-result
+  // empty for affected users.
+  function transformString(input) {
+    return input
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
   onReady(function() {
     document.querySelectorAll('#filter a').forEach((link) => {
         link.addEventListener('click', (el) => {
