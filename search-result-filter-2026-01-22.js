@@ -109,6 +109,13 @@ function displayPagination(totalResults, query){
     }
   }
 
+function clearAllPagination() {
+  document.querySelectorAll('#pagination').forEach((p) => {
+    p.innerHTML = '';
+    p.style.cssText = '';
+  });
+}
+
 async function displayAll(){
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
@@ -118,6 +125,7 @@ async function displayAll(){
       msg.textContent = "Saisissez un terme dans la barre de recherche.";
       msg.style.cssText = "padding: 8px 0; font-size: 16px; color: #555;";
       resultList.appendChild(msg);
+      clearAllPagination();
       return;
     }
 
@@ -140,6 +148,7 @@ async function displayAll(){
       msg.style.fontSize = "16px";
       msg.style.color = "#555";
       resultList.appendChild(msg);
+      clearAllPagination();
       return;
     }
   
