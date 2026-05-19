@@ -271,4 +271,27 @@ async function displayAll(){
         });
         if (query != null) displayAll();
     });
+
+    // Live-refresh the main result list as the user types. Bind both bars
+    // because /search-result actually renders both #search-bar-main (the
+    // autofocused, prominently visible one inside .search-block-results) and
+    // #search-bar-nav (the top navbar). The ordotype-index-*.js binding picks
+    // only one based on viewport, so the other bar would otherwise be inert.
+    // Adaptive debounce mirrors the index file's pattern (0ms for short
+    // queries, 150ms once typing has length).
+    let liveDebounce;
+    const onLiveInput = (bar) => {
+      clearTimeout(liveDebounce);
+      const v = bar.value.trim();
+      const delay = v.length <= 2 ? 0 : 150;
+      liveDebounce = setTimeout(() => {
+        query = v;
+        page = 1;
+        displayAll();
+      }, delay);
+    };
+    ['search-bar-main', 'search-bar-nav'].forEach((id) => {
+      const bar = document.getElementById(id);
+      bar?.addEventListener('input', () => onLiveInput(bar));
+    });
   });
