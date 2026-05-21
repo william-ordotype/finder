@@ -238,24 +238,20 @@ async function displayAll(){
     }
   }
 
-  // Local copy so this file works regardless of when ordotype-index-*.js
-  // (which also defines transformString globally) loads relative to this one.
-  // The earlier load-order race threw ReferenceError inside the rAF callback
-  // below, which aborted the initial displayAll() and left /search-result
-  // empty for affected users.
-  function transformString(input) {
-    return input
-      .toString()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-  }
+  // transformString(), search(), setItemWithExpiration(), activeFilter, etc. are
+  // provided by ordotype-index-*.js, which is guaranteed present because this file
+  // is concatenated with it into search-result-bundle.js (loaded on /search-result).
+  // The onReady guard below is defense-in-depth in case this file ever runs alone.
 
   onReady(function() {
+    // Bail quietly if the index half isn't present (e.g. this file somehow ran
+    // alone) instead of throwing "activeFilter is not defined" - Sentry
+    // ORDOTYPE-FRONTEND-19J. In the bundle the index is always present.
+    if (typeof search !== "function") {
+      console.warn("[search-result-filter] index not loaded - skipping filter setup");
+      return;
+    }
+
     document.querySelectorAll('#filter a').forEach((link) => {
         link.addEventListener('click', (el) => {
             activeTab = el.currentTarget.getAttribute('data-w-tab');
@@ -270,7 +266,7 @@ async function displayAll(){
     // Defer programmatic tab switch + initial render until after Webflow's
     // w-tabs widget has bound its handlers. Otherwise link.click() silently
     // no-ops, leaving the visible tab on Tab 1 while results get written to
-    // whichever tab matches the stored filterTemp — looks like "no results".
+    // whichever tab matches the stored filterTemp - looks like "no results".
     requestAnimationFrame(() => {
         document.querySelectorAll('#filter a').forEach((link) => {
             if (transformString(link.innerText) == activeFilter) {
