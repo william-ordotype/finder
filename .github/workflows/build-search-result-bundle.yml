@@ -29,6 +29,9 @@ jobs:
       - name: Build bundle
         run: bash build-search-result-bundle.sh
 
+      - name: Validate the bundle parses (never publish a broken bundle)
+        run: node --check search-result-bundle.js
+
       - name: Commit & push if the bundle changed
         id: commit
         run: |
