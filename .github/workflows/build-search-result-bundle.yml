@@ -1,0 +1,49 @@
+name: Build search-result bundle
+
+# Regenerates search-result-bundle.js whenever the index or filter source changes,
+# commits it back, and purges the jsDelivr cache so it goes live immediately.
+# The bundle itself is NOT in the paths filter, so the bot's commit can't re-trigger
+# this workflow (no loop); [skip ci] and the GITHUB_TOKEN push are extra safety nets.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ordotype-index-*.js'
+      - 'search-result-filter-*.js'
+      - 'build-search-result-bundle.sh'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-search-result-bundle
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build bundle
+        run: bash build-search-result-bundle.sh
+
+      - name: Commit & push if the bundle changed
+        id: commit
+        run: |
+          if git diff --quiet -- search-result-bundle.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "search-result-bundle.js already up to date — nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add search-result-bundle.js
+          git commit -m "build: regenerate search-result-bundle.js [skip ci]"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Purge jsDelivr cache for the bundle
+        if: steps.commit.outputs.changed == 'true'
+        run: curl -sS "https://purge.jsdelivr.net/gh/william-ordotype/finder@main/search-result-bundle.js" || true
