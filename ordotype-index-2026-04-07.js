@@ -75,6 +75,98 @@ searchBar?.addEventListener("input", (event) => {
   searchDebounceTimer = setTimeout(() => inputEvent(searchBar, event), delay);
 });
 
+// ---- Deferred, de-duplicated search-analytics logging ----
+// `updateQueryCount` is pure telemetry (a GET + POST to the search-queries ES
+// index). It used to fire on EVERY keystroke, producing an N+1 burst per search
+// (e.g. "diab", "diabe", "diabet", "diabete") that polluted query counts and
+// competed with the result fetch on the same ES host. We never touch the result
+// render path; instead we log the FINAL settled query once, ~1s after the user
+// stops typing — so the first result still appears instantly.
+var loggedQueries = new Set();   // query strings already counted this page-load
+var analyticsTimer;
+var pendingQueryLog = null;      // { query, results }
+var CARRIED_QUERY_KEY = "ot_pending_query_log";
+var MAX_CARRIED = 25;            // cap stored batch (defensive: axios-down across many navs)
+
+// Dedup on the bare query string: `count` must increment EXACTLY once per query
+// per page-load (it feeds Finder Importance), and updateQueryCount bumps `count`
+// whether or not the query had results. Trade-off: a query first seen with no
+// results then later returning results in the SAME load keeps its first-seen
+// noResults flag — a rare, minor analytics-accuracy edge we accept rather than
+// risk double-counting `count` with a state-aware key.
+
+function scheduleQueryLog(query, results) {
+  pendingQueryLog = { query: query, results: results };
+  clearTimeout(analyticsTimer);
+  analyticsTimer = setTimeout(flushQueryLog, 1000);
+}
+
+function flushQueryLog() {
+  var job = pendingQueryLog;
+  pendingQueryLog = null;
+  if (!job || loggedQueries.has(job.query)) return;
+  loggedQueries.add(job.query);
+  // Fire directly (not via requestIdleCallback): it's async network, doesn't
+  // block render, and the 1s debounce already keeps it clear of the active
+  // result fetch. Deferring further only widens the window where a navigation
+  // could drop the count.
+  updateQueryCount(job.query, job.results, true);
+}
+
+// A search the user commits to — clicks a result, hits back, closes the tab —
+// navigates away before the 1s timer fires, and the two-step GET+POST can't
+// complete during unload. So on hide we persist the pending query and count it
+// on the next page load (or bfcache restore), when the page is alive again.
+// Entries are stored as an ARRAY so a still-unreplayed carry from an earlier
+// load is never clobbered. `pagehide` covers same-tab result clicks
+// (window.location.href); `visibilitychange` covers mobile Safari, which fires
+// pagehide/unload unreliably.
+function carryPendingToNextLoad() {
+  if (!pendingQueryLog || loggedQueries.has(pendingQueryLog.query)) return;
+  var entry = pendingQueryLog;
+  try {
+    var existing = getItemWithExpiration(CARRIED_QUERY_KEY);
+    var batch = Array.isArray(existing) ? existing : (existing ? [existing] : []);
+    if (!batch.some(function (e) { return e && e.query === entry.query; })) batch.push(entry);
+    if (batch.length > MAX_CARRIED) batch = batch.slice(-MAX_CARRIED);
+    setItemWithExpiration(CARRIED_QUERY_KEY, batch, 24);
+    // Only after the persist SUCCEEDS: mark logged + clear pending. If setItem
+    // throws (private mode / quota), leave both intact so the 1s flush timer can
+    // still count it on this live page.
+    loggedQueries.add(entry.query);
+    pendingQueryLog = null;
+  } catch (e) { /* storage full / private mode — best-effort */ }
+}
+window.addEventListener("pagehide", carryPendingToNextLoad);
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "hidden") carryPendingToNextLoad();
+});
+
+// Replay queries carried from a previous page (see carryPendingToNextLoad).
+// Claim them against in-page dedup immediately (so a concurrent re-search of the
+// same query can't double-count), but wait for axios — loaded async, often not
+// ready at module init — and don't consume the stored batch until the writes
+// actually fire, so a not-yet-ready page never silently drops them.
+function replayCarriedQueryLog(attempt) {
+  var carried = getItemWithExpiration(CARRIED_QUERY_KEY);
+  if (!carried) return;
+  var batch = (Array.isArray(carried) ? carried : [carried]).filter(function (e) { return e && e.query; });
+  if (!batch.length) { localStorage.removeItem(CARRIED_QUERY_KEY); return; }
+  batch.forEach(function (e) { loggedQueries.add(e.query); });
+  if (typeof axios === "undefined") {
+    if ((attempt || 0) < 20) {
+      setTimeout(function () { replayCarriedQueryLog((attempt || 0) + 1); }, 250);
+    }
+    return;
+  }
+  localStorage.removeItem(CARRIED_QUERY_KEY);
+  batch.forEach(function (e) { updateQueryCount(e.query, e.results, true); });
+}
+replayCarriedQueryLog();
+window.addEventListener("pageshow", function (e) {
+  if (e.persisted) replayCarriedQueryLog(0);   // bfcache restore: module didn't re-init
+});
+
 function handleSendResultsToGA(element, query, resultCount) {
    window.dataLayer.push({ event: "show_search_results", element, query: query || "", result_count: resultCount ?? 0 });
 }
@@ -148,7 +240,7 @@ async function inputEvent(input, e) {
     // EXCEPT when the query is explicitly blocked (no matching fiche exists)
     if (!isBlocked && existing && existing.querySelector('#filter')) {
       if (inputType !== "deleteContentBackward" && query.length > 3) {
-        updateQueryCount(query, false);
+        scheduleQueryLog(query, false);
       }
       return true;
     }
@@ -177,14 +269,16 @@ async function inputEvent(input, e) {
     document.body.appendChild(searchResults);
 
     if (inputType !== "deleteContentBackward" && query.length > 3) {
-      updateQueryCount(query, false);
+      scheduleQueryLog(query, false);
     }
     return true;
   }
 
-  // We have results
+  // We have results — arm telemetry BEFORE painting so a render error can't
+  // suppress the count; scheduleQueryLog only sets a timer (no network/DOM work),
+  // so this does not delay the first result.
   if (inputType !== "deleteContentBackward" && query.length > 3) {
-    updateQueryCount(query);
+    scheduleQueryLog(query, true);
   }
 
   handleSendResultsToGA(input.id, query, results.length);
