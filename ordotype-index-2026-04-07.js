@@ -75,6 +75,36 @@ searchBar?.addEventListener("input", (event) => {
   searchDebounceTimer = setTimeout(() => inputEvent(searchBar, event), delay);
 });
 
+// ---- Deferred, de-duplicated search-analytics logging ----
+// `updateQueryCount` is pure telemetry (a GET + POST to the search-queries ES
+// index). It used to fire on EVERY keystroke, producing an N+1 burst per search
+// (e.g. "diab", "diabe", "diabet", "diabete") that polluted query counts and
+// competed with the result fetch on the same ES host. We never touch the result
+// render path; instead we log the FINAL settled query once, ~1s after the user
+// stops typing, on idle — so the first result still appears instantly.
+var loggedQueries = new Set();   // queries already counted this page-load
+var analyticsTimer;
+var pendingQueryLog = null;      // { query, results }
+
+function scheduleQueryLog(query, results) {
+  pendingQueryLog = { query: query, results: results };
+  clearTimeout(analyticsTimer);
+  analyticsTimer = setTimeout(flushQueryLog, 1000);
+}
+
+function flushQueryLog() {
+  var job = pendingQueryLog;
+  pendingQueryLog = null;
+  if (!job || loggedQueries.has(job.query)) return;
+  loggedQueries.add(job.query);
+  var run = function () { updateQueryCount(job.query, job.results, true); };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 2000 });
+  } else {
+    setTimeout(run, 0);
+  }
+}
+
 function handleSendResultsToGA(element, query, resultCount) {
    window.dataLayer.push({ event: "show_search_results", element, query: query || "", result_count: resultCount ?? 0 });
 }
@@ -148,7 +178,7 @@ async function inputEvent(input, e) {
     // EXCEPT when the query is explicitly blocked (no matching fiche exists)
     if (!isBlocked && existing && existing.querySelector('#filter')) {
       if (inputType !== "deleteContentBackward" && query.length > 3) {
-        updateQueryCount(query, false);
+        scheduleQueryLog(query, false);
       }
       return true;
     }
@@ -177,18 +207,18 @@ async function inputEvent(input, e) {
     document.body.appendChild(searchResults);
 
     if (inputType !== "deleteContentBackward" && query.length > 3) {
-      updateQueryCount(query, false);
+      scheduleQueryLog(query, false);
     }
     return true;
   }
 
-  // We have results
-  if (inputType !== "deleteContentBackward" && query.length > 3) {
-    updateQueryCount(query);
-  }
-
+  // We have results — paint them FIRST, then schedule telemetry off the hot path
   handleSendResultsToGA(input.id, query, results.length);
   displayResults(results, input, fromSuggest);
+
+  if (inputType !== "deleteContentBackward" && query.length > 3) {
+    scheduleQueryLog(query, true);
+  }
   return true;
 }
 
