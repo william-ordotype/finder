@@ -1,7 +1,7 @@
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 const ES_INDEX_STAGING = "ordotype-index-2026-06-02-b";
-const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02-b";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
@@ -458,13 +458,13 @@ async function search(query, filter, page) {
     // junk cross-word collisions on high-Importance fiches — e.g. "genou" fuzzy-hit
     // Boost:"meno" (Ménopause) and HTML:"tenu" (Angine). Name/Alias keep nameFuzziness
     // for typo tolerance. Gated on IS_STAGING for soak; ungated on promotion.
-    const bodyFuzziness = IS_STAGING ? 0 : nameFuzziness;
+    const bodyFuzziness = 0;
 
     // Importance modifier: "sqrt" compresses the Importance multiplier so a strong Name
     // match isn't overpowered by an unrelated high-Importance fiche. Fixes ~40 of the
     // top-500 queries (cancer, insuffisance, abcès, vertiges, throm, rosac, ostéo, ...).
     // Gated on IS_STAGING for soak; ungated on promotion.
-    const importanceModifier = IS_STAGING ? "sqrt" : "none";
+    const importanceModifier = "sqrt";
 
     const response = await axios.post(
       `${ES_URL}/_search`,
