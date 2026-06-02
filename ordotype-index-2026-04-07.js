@@ -1,6 +1,6 @@
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_INDEX_STAGING = "ordotype-index-2026-06-02";
+const ES_INDEX_STAGING = "ordotype-index-2026-06-02-b";
 const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02";
 
 // Choose index by environment: staging (webflow) vs production
@@ -443,6 +443,13 @@ async function search(query, filter, page) {
 
     const nameFuzziness =  query.length >= 5 ? 2 : query.length >= 4 ? "AUTO" : 0;
 
+    // Fuzzy-noise fix: exact-only matching (fuzziness 0) on the Boost field (short,
+    // curated keywords) and the long body fields. Fuzzy matching there surfaced
+    // junk cross-word collisions on high-Importance fiches — e.g. "genou" fuzzy-hit
+    // Boost:"meno" (Ménopause) and HTML:"tenu" (Angine). Name/Alias keep nameFuzziness
+    // for typo tolerance. Gated on IS_STAGING for soak; ungated on promotion.
+    const bodyFuzziness = IS_STAGING ? 0 : nameFuzziness;
+
     const response = await axios.post(
       `${ES_URL}/_search`,
       {
@@ -508,7 +515,7 @@ async function search(query, filter, page) {
                             Boost: {
                               query: query,
                               operator: "OR",
-                              fuzziness: nameFuzziness,
+                              fuzziness: bodyFuzziness,
                               boost: 4,
                             },
                           },
@@ -518,7 +525,7 @@ async function search(query, filter, page) {
                             "Ordonnances médicales": {
                               query: query,
                               operator: "AND",
-                              fuzziness: nameFuzziness,
+                              fuzziness: bodyFuzziness,
                               boost: 0.5,
                             },
                           },
@@ -528,7 +535,7 @@ async function search(query, filter, page) {
                             "Conseils patient": {
                               query: query,
                               operator: "AND",
-                              fuzziness: nameFuzziness,
+                              fuzziness: bodyFuzziness,
                               boost: 0.5,
                             },
                           },
@@ -538,7 +545,7 @@ async function search(query, filter, page) {
                             "Informations cliniques - HTML": {
                               query: query,
                               operator: "AND",
-                              fuzziness: nameFuzziness,
+                              fuzziness: bodyFuzziness,
                               boost: 0.3,
                             },
                           },
