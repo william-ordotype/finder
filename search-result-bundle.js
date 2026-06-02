@@ -32,6 +32,16 @@ function normalizeForBlocklist(q) {
   return q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// Pinned #1 for a few ultra-short, ambiguous high-traffic prefixes where the most
+// common condition is the near-certain intent. Under the compressed (sqrt) Importance
+// model a rarer same-prefix fiche can edge ahead (e.g. "Hype" -> Hyperthyro\u00efdie instead
+// of the far more common Hypertension); pin the canonical fiche (by slug) to #1 for
+// these exact normalized queries. No-op when that fiche is already #1.
+var PINNED_FIRST = {
+  "h": "hta",      // Hypertension art\u00e9rielle
+  "hype": "hta",
+};
+
 // Handle click outside of search results
 document.addEventListener("click", ({ target }) => {
   const searchResults = document.getElementById("search-results");
@@ -455,6 +465,12 @@ async function search(query, filter, page) {
     // for typo tolerance. Gated on IS_STAGING for soak; ungated on promotion.
     const bodyFuzziness = IS_STAGING ? 0 : nameFuzziness;
 
+    // Importance modifier: "sqrt" compresses the Importance multiplier so a strong Name
+    // match isn't overpowered by an unrelated high-Importance fiche. Fixes ~40 of the
+    // top-500 queries (cancer, insuffisance, abcès, vertiges, throm, rosac, ostéo, ...).
+    // Gated on IS_STAGING for soak; ungated on promotion.
+    const importanceModifier = IS_STAGING ? "sqrt" : "none";
+
     const response = await axios.post(
       `${ES_URL}/_search`,
       {
@@ -585,7 +601,7 @@ async function search(query, filter, page) {
             field_value_factor: {
               field: "Importance",
               factor: 1.5,
-              modifier: "none",
+              modifier: importanceModifier,
               missing: 1,
             },
           },
@@ -639,6 +655,13 @@ async function search(query, filter, page) {
         filtres: src.Filtres,
       };
     });
+
+    // Pin the canonical fiche to #1 for known ambiguous short prefixes (see PINNED_FIRST).
+    const pinSlug = PINNED_FIRST[normalizeForBlocklist(query)];
+    if (pinSlug) {
+      const pinIdx = results.findIndex((r) => r.Slug === pinSlug);
+      if (pinIdx > 0) results.unshift(results.splice(pinIdx, 1)[0]);
+    }
 
     return { results, fromSuggest: usingSuggestions };
   } catch (error) {
