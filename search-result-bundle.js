@@ -472,6 +472,15 @@ async function search(query, filter, page) {
     // Gated on IS_STAGING for soak; ungated on promotion.
     const importanceModifier = "sqrt";
 
+    // Cross-stem fuzzy-noise fix: require the first letter to match before fuzzy edits
+    // apply on Name/Alias. Kills different-stem / shared-suffix false matches — e.g.
+    // "otalgie" (ear pain) fuzzy-hitting "Gonalgie" (knee, edit-distance 2) and ranking
+    // it #2 via its Importance. Validated: 0 regressions on top-200 + regression + targeted
+    // sets (poids stays correct). First-letter typos are rare in prefix search; edits 2..N
+    // are still tolerated. Boost/body fields already use fuzziness 0, so prefix_length is
+    // only meaningful on the Name/Alias fuzzy clauses below.
+    const namePrefixLength = 1;
+
     const response = await axios.post(
       `${ES_URL}/_search`,
       {
@@ -499,6 +508,7 @@ async function search(query, filter, page) {
                               query: query,
                               operator: "AND",
                               fuzziness: nameFuzziness,
+                              prefix_length: namePrefixLength,
                               boost: 3,
                             },
                           },
@@ -519,6 +529,7 @@ async function search(query, filter, page) {
                               query: query,
                               operator: "OR",
                               fuzziness: nameFuzziness,
+                              prefix_length: namePrefixLength,
                             },
                           },
                         },
