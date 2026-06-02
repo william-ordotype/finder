@@ -5,8 +5,8 @@
 // ===== ordotype-index-2026-04-07.js =====
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
-const ES_INDEX_STAGING = "ordotype-index-2026-06-02-b";
-const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02-b";
+const ES_INDEX_STAGING = "ordotype-index-2026-06-02-c";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02-c";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
@@ -25,7 +25,8 @@ let currentFocus;
 var BLOCKED_QUERIES = new Set([
   "lupus", "hyponatremie", "tuberculose", "tdah", "gingivite",
   "meningite", "cushing", "pericardite", "horton", "souffle",
-  "pied main", "pied-main", "pied main bouche", "pied-main-bouche", "pied-main bouche", "syndrome pied main bouche", "syndrome pied-main-bouche"
+  "pied main", "pied-main", "pied main bouche", "pied-main-bouche", "pied-main bouche", "syndrome pied main bouche", "syndrome pied-main-bouche",
+  "anti"
 ]);
 
 function normalizeForBlocklist(q) {
