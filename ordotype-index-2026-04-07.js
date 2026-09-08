@@ -17,10 +17,23 @@ let currentFocus;
 // Blocklist: queries with no matching fiche — return empty results
 // instead of misleading fuzzy matches. Remove a term when its fiche is created.
 // See: https://www.notion.so/ordotype/32f30a1b750f81a0ab35fdcdc6b4a910
+// NOTE: matching is exact on the normalized query, so a blocked WORD does not block
+// its prefixes: each prefix that would otherwise fall through to a junk fuzzy match
+// needs its own entry (see "hypon" and "pied mai" below).
 var BLOCKED_QUERIES = new Set([
   "lupus", "hyponatremie", "tuberculose", "tdah", "gingivite",
   "meningite", "cushing", "pericardite", "horton", "souffle",
   "pied main", "pied-main", "pied main bouche", "pied-main-bouche", "pied-main bouche", "syndrome pied main bouche", "syndrome pied-main-bouche",
+  // "pied mai" (20.6k searches) is the one unblocked prefix of "pied main bouche" that
+  // still returned a wrong fiche (Dermatophytose ungueale). Shorter prefixes "pied m" /
+  // "pied ma" are left unblocked on purpose: negligible volume, and they are plausible
+  // prefixes of "pied mycose", for which Dermatophytose ungueale is a good answer.
+  "pied mai", "pied-mai",
+  // "hypon" (10.3k searches, 9.3% no-click) fuzzy-matched Hyperthyroidie (hypon~hyper).
+  // It is the last leak in the hyponatremie chain: "hypona".."hyponatremi" already match
+  // nothing and "hyponatremie" is blocked above. There is no hyponatremie fiche (only
+  // Hypernatremie). Remove both once one is created.
+  "hypon",
   "anti"
 ]);
 
