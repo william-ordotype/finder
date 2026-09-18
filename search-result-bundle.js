@@ -115,7 +115,23 @@ var loggedQueries = new Set();   // query strings already counted this page-load
 var analyticsTimer;
 var pendingQueryLog = null;      // { query, results }
 var CARRIED_QUERY_KEY = "ot_pending_query_log";
-var MAX_CARRIED = 25;            // cap stored batch (defensive: axios-down across many navs)
+// Minimal JSON transport. Returns { data }, the shape every call site here
+// already expects, and throws on a non-2xx status so the existing catch blocks
+// behave exactly as before. The thrown message carries no URL: the search URL
+// holds the visitor's own query.
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+  return { data: await res.json() };
+}
+
+const SEARCH_HEADERS = {
+  "Content-Type": "application/json",
+  Authorization:
+    "ApiKey SEdpeW1wb0J5bkFkTnVyZVp3TUs6bTFuUDRhdDNRTEdnbWtrSEV4a3QwUQ==",
+};
+
+var MAX_CARRIED = 25;            // cap stored batch (defensive: writes failing across many navs)
 
 // Dedup on the bare query string: `count` must increment EXACTLY once per query
 // per page-load (it feeds Finder Importance), and updateQueryCount bumps `count`
@@ -172,28 +188,20 @@ document.addEventListener("visibilitychange", function () {
 });
 
 // Replay queries carried from a previous page (see carryPendingToNextLoad).
-// Claim them against in-page dedup immediately (so a concurrent re-search of the
-// same query can't double-count), but wait for axios — loaded async, often not
-// ready at module init — and don't consume the stored batch until the writes
-// actually fire, so a not-yet-ready page never silently drops them.
-function replayCarriedQueryLog(attempt) {
+// Claim them against in-page dedup immediately, so a concurrent re-search of the
+// same query cannot double-count.
+function replayCarriedQueryLog() {
   var carried = getItemWithExpiration(CARRIED_QUERY_KEY);
   if (!carried) return;
   var batch = (Array.isArray(carried) ? carried : [carried]).filter(function (e) { return e && e.query; });
   if (!batch.length) { localStorage.removeItem(CARRIED_QUERY_KEY); return; }
   batch.forEach(function (e) { loggedQueries.add(e.query); });
-  if (typeof axios === "undefined") {
-    if ((attempt || 0) < 20) {
-      setTimeout(function () { replayCarriedQueryLog((attempt || 0) + 1); }, 250);
-    }
-    return;
-  }
   localStorage.removeItem(CARRIED_QUERY_KEY);
   batch.forEach(function (e) { updateQueryCount(e.query, e.results, true); });
 }
 replayCarriedQueryLog();
 window.addEventListener("pageshow", function (e) {
-  if (e.persisted) replayCarriedQueryLog(0);   // bfcache restore: module didn't re-init
+  if (e.persisted) replayCarriedQueryLog();   // bfcache restore: module didn't re-init
 });
 
 function handleSendResultsToGA(element, query, resultCount) {
@@ -494,9 +502,10 @@ async function search(query, filter, page) {
     // only meaningful on the Name/Alias fuzzy clauses below.
     const namePrefixLength = 1;
 
-    const response = await axios.post(
-      `${ES_URL}/_search`,
-      {
+    const response = await fetchJson(`${ES_URL}/_search`, {
+      method: "POST",
+      headers: SEARCH_HEADERS,
+      body: JSON.stringify({
         query: {
           function_score: {
             query: {
@@ -652,15 +661,8 @@ async function search(query, filter, page) {
           { "Ordonnances médicales": { order: "desc", missing: "_last" } },
           { "Conseils patient": { order: "desc", missing: "_last" } },
         ],
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:
-            "ApiKey SEdpeW1wb0J5bkFkTnVyZVp3TUs6bTFuUDRhdDNRTEdnbWtrSEV4a3QwUQ==",
-        },
-      }
-    );
+      }),
+    });
 
      const hits = response.data.hits.hits;
    const suggestions = response.data.suggest?.med_suggest?.[0]?.options ?? [];
@@ -871,7 +873,7 @@ async function updateQueryCount(query, results = true, click = true) {
       Authorization:
         "ApiKey SVdpX21wb0J5bkFkTnVyZTJ3TWQ6RkExR1VIXzdTMG1lN0lURUdYVHBfQQ==",
     };
-    const response = await axios.get(searchUrl, { headers: searchHeaders });
+    const response = await fetchJson(searchUrl, { headers: searchHeaders });
     const hits = response.data.hits.total.value;
 
     if (hits > 0) {
@@ -905,13 +907,13 @@ async function updateQueryCount(query, results = true, click = true) {
         }
       }
 
-      await axios.post(updateUrl, updateData, { headers: searchHeaders });
+      await fetchJson(updateUrl, { method: "POST", headers: searchHeaders, body: JSON.stringify(updateData) });
     } else {
       const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_doc`;
       var nowNew = new Date().toISOString();
       const indexData = { query, count: 1, createdAt: nowNew, lastUpdated: nowNew };
       if (!results) indexData.noResults = 1;
-      await axios.post(indexUrl, indexData, { headers: searchHeaders });
+      await fetchJson(indexUrl, { method: "POST", headers: searchHeaders, body: JSON.stringify(indexData) });
     }
   } catch (error) {
     console.error(`Error updating query count: ${error.message}`);
