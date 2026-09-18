@@ -863,10 +863,12 @@ async function updateQueryCount(query, results = true, click = true) {
     }
 
     const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_search?q=query:${encodeURIComponent(query)}`;
+    // Public by design (it ships to every browser): key `finder-search-queries-writer`
+    // can only read and index in `search-queries`, no delete, no other index.
     const searchHeaders = {
       "Content-Type": "application/json",
       Authorization:
-        "ApiKey SVdpX21wb0J5bkFkTnVyZTJ3TWQ6RkExR1VIXzdTMG1lN0lURUdYVHBfQQ==",
+        "ApiKey N3B6V3M2QUJ6bmczS0FNZFQyS046Z0RDS0FXZWVTRUdTUkVqcFZfVHJidw==",
     };
     const response = await fetchJson(searchUrl, { headers: searchHeaders });
     const hits = response.data.hits.total.value;
