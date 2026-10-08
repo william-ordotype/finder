@@ -22,8 +22,7 @@ const baseUrl = window.location.origin;
 // Résultats par page sur /search-result (requête Elastic et pagination).
 var RESULTS_PAGE_SIZE = 20;
 
-// -1 = aucun résultat surligné. Non initialisé, une flèche bas avant toute frappe
-// (valeur restaurée par le navigateur) donnait NaN, puis plantait (Sentry 1HK).
+// -1 = aucun résultat surligné (valeur de départ, même si le champ est déjà rempli).
 var currentFocus = -1;
 
 // Numéro de la dernière recherche lancée depuis un champ : une réponse plus ancienne
@@ -41,8 +40,7 @@ function searchResultUrl(query) {
 // formulaires Webflow sans bouton d'envoi : toute touche Entrée que le moteur
 // n'intercepte pas (champ non branché, saisie en cours de composition sur un
 // clavier de téléphone, moteur qui n'a pas fini de démarrer) envoyait le
-// formulaire à Webflow au lieu de chercher (~2 450 envois depuis 2024, mails
-// « wf-form- » et « search bar form »), et Webflow masquait le champ. Tout envoi
+// formulaire à Webflow au lieu de chercher, et Webflow masquait le champ. Tout envoi
 // d'un de ces formulaires devient une recherche. Écouté en capture sur document,
 // avant le gestionnaire de Webflow ; posé en tête de fichier, avant tout ce qui
 // peut échouer au démarrage (stockage refusé).
@@ -126,9 +124,8 @@ try {
 } catch (e) {
   memberData = {};
 }
-// Syntaxe ES2019 seulement dans ce fichier (pas de « ?. » ni de « ?? ») : les
-// navigateurs des postes hospitaliers (Chrome 78, Safari 12) ne savaient pas lire
-// le fichier, qui ne démarrait pas du tout (Sentry 1F6). Vérifié par parse-floor.
+// Syntaxe ES2019 seulement dans ce fichier (pas de « ?. » ni de « ?? ») : navigateurs
+// anciens. Vérifié par check-parse-floor.sh.
 const activePlanIds = (memberData.planConnections || []).filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId);
 let activeFilter = (getItemWithExpiration('filterTemp'))
     || (
@@ -152,7 +149,7 @@ if (searchBar) searchBar.addEventListener("input", (event) => {
 });
 
 // ---- Deferred, de-duplicated search-analytics logging ----
-// `updateQueryCount` is pure telemetry (a GET + POST to the search-queries ES
+// `updateQueryCount` is pure telemetry (one POST _update to the search-queries ES
 // index). It used to fire on EVERY keystroke, producing an N+1 burst per search
 // (e.g. "diab", "diabe", "diabet", "diabete") that polluted query counts and
 // competed with the result fetch on the same ES host. We never touch the result
@@ -172,10 +169,8 @@ async function fetchJson(url, options) {
   return { data: await res.json() };
 }
 
-// Public by design (it ships to every browser): key `finder-search-public-2026-10`
-// can only READ the dated Finder indexes (`ordotype-index-20*`). The previous key
-// (`finder-readonly`) read EVERY index, including `ordotype-index-writers` (full
-// text of 6 593 contents, drafts and archived included) and `search-queries`.
+// Public by design (it ships to every browser): read-only key limited to the
+// Finder indexes, whose names must start with `ordotype-index-20`.
 const SEARCH_HEADERS = {
   "Content-Type": "application/json",
   Authorization:
@@ -210,7 +205,7 @@ function flushQueryLog() {
 }
 
 // A search the user commits to — clicks a result, hits back, closes the tab —
-// navigates away before the 1s timer fires, and the two-step GET+POST can't
+// navigates away before the 1s timer fires, and the async SHA-1 + POST can't
 // complete during unload. So on hide we persist the pending query and count it
 // on the next page load (or bfcache restore), when the page is alive again.
 // Entries are stored as an ARRAY so a still-unreplayed carry from an earlier
@@ -303,7 +298,7 @@ async function clickEvent(activeFilter) {
   // Dépassée par une recherche plus récente, ou par une frappe encore dans son délai.
   if (seq !== searchSeq || searchBar.value.trim() !== query) return;
 
-  // La liste a pu être fermée pendant la recherche (Sentry 16J).
+  // La liste a pu être fermée pendant la recherche.
   const searchResults = document.getElementById("search-results");
   if (!searchResults) return;
 
@@ -537,7 +532,7 @@ function setItemWithExpiration(key, value, expirationInHours = 24) {
 
 // Stockage refusé (cookies bloqués : « The operation is insecure », WebView
 // sans localStorage) : la lecture rend null au lieu de lever, sinon le moteur
-// s'arrêtait au démarrage, sans résultats ni Entrée (Sentry 11C, 12P).
+// s'arrêtait au démarrage, sans résultats ni Entrée.
 function removeStored(key) {
   try { localStorage.removeItem(key); } catch (e) { /* stockage refusé */ }
 }
@@ -879,8 +874,7 @@ function displayResults(results, input, fromSuggest) {
           stringifiedFilter = transformString(el.target.innerText);
           activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
           try { setItemWithExpiration('filterTemp', activeFilter, 24); } catch (e) { /* stockage refusé : filtre gardé pour cette page */ }
-          // Onglet précédent cherché dans CETTE liste, et absent toléré : il pouvait
-          // manquer et le clic s'arrêtait sur une erreur (Sentry 1JF).
+          // Onglet précédent cherché dans CETTE liste, et absent toléré.
           var previous = (link.closest('#filter') || document).querySelector('a[data-w-tab="' + lastActiveTab + '"]');
           if (previous) previous.classList.remove('w--current');
           el.currentTarget.classList.add('w--current')
@@ -961,6 +955,33 @@ function displayResults(results, input, fromSuggest) {
 }
 
 // -------- Update query counts (Tunisia removed) --------
+// Identifiant du document d'une requête : SHA-1 de sa clé (texte NFC, espaces de bord
+// retirés, minuscules). Le comptage écrit directement sur ce document.
+async function queryDocId(query) {
+  var key = query.normalize("NFC").trim().toLowerCase();
+  var buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(key));
+  return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+    return ("0" + b.toString(16)).slice(-2);
+  }).join("");
+}
+
+// Un seul script, compilé une fois par Elastic (seuls les paramètres changent).
+// - Heure du serveur (ctx._now), pas celle du visiteur.
+// - Requête neuve : le document est créé avec le texte tapé (scripted_upsert).
+// - noClick sur une requête jamais comptée (moins de 4 lettres, ou atteinte en effaçant) :
+//   rien n'est créé (ctx.op = 'none'). Ce n'est pas une recherche à compter.
+var QUERY_LOG_SCRIPT =
+  "String now = Instant.ofEpochMilli(ctx._now).toString();" +
+  " if (params.kind == 'noclick') {" +
+  "   if (ctx.op == 'create') { ctx.op = 'none'; return; }" +
+  "   ctx._source.noClick = (ctx._source.noClick == null ? 0 : ctx._source.noClick) + 1;" +
+  " } else {" +
+  "   if (ctx.op == 'create') { ctx._source.query = params.query; ctx._source.count = 0; ctx._source.createdAt = now; }" +
+  "   ctx._source.count = (ctx._source.count == null ? 0 : ctx._source.count) + 1;" +
+  "   if (!params.results) { ctx._source.noResults = (ctx._source.noResults == null ? 0 : ctx._source.noResults) + 1; }" +
+  " }" +
+  " ctx._source.lastUpdated = now;";
+
 async function updateQueryCount(query, results = true, click = true) {
   try {
     const currentHost = window.location.hostname;
@@ -980,85 +1001,38 @@ async function updateQueryCount(query, results = true, click = true) {
       return;
     }
 
-    // Ni lettre ni chiffre (« ???? », « .... », « / ») : rien à compter. L'ancienne
-    // recherche Lucene échouait sur ces requêtes et n'écrivait rien.
+    // Ni lettre ni chiffre (« ???? », « .... », « / ») : rien à compter.
     if (!/[\p{L}\p{N}]/u.test(query)) return;
+    // Sans SHA-1 du navigateur (page non sécurisée, très vieille WebView) : pas de comptage.
+    if (!window.crypto || !crypto.subtle || typeof TextEncoder === "undefined") return;
 
-    // Document de CETTE requête. L'ancienne recherche (?q=query:<texte>) passait le texte
-    // en syntaxe Lucene, mot par mot : « diabete type 2 » comptait sur le document
-    // « Type », « infection urinaire » sur « urinaires », « : » ou « / » renvoyaient une
-    // erreur 400 (comptage perdu), et 34 des 300 requêtes les plus tapées comptaient sur
-    // un autre document (« angine*$* » au lieu de « angine »). Recherche exacte sur le
-    // sous-champ keyword `query.enum`, casse ignorée, le plus compté s'il y a des
-    // doublons : aucun plafond de résultats, aucune syntaxe. Vérifiée sur les 300
-    // requêtes les plus comptées (bon document, ou le plus compté de ses doublons).
-    const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_search`;
-    // Public by design (it ships to every browser): key `finder-search-queries-writer`
-    // can only read and index in `search-queries`, no delete, no other index.
-    const searchHeaders = {
+    var id = await queryDocId(query);
+    // retry_on_conflict : deux visiteurs qui comptent la même requête au même instant.
+    var updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${id}?retry_on_conflict=3`;
+    // Public by design (it ships to every browser): key limited to `search-queries`.
+    var headers = {
       "Content-Type": "application/json",
       Authorization:
         "ApiKey N3B6V3M2QUJ6bmczS0FNZFQyS046Z0RDS0FXZWVTRUdTUkVqcFZfVHJidw==",
     };
-    const response = await fetchJson(searchUrl, {
+    await fetchJson(updateUrl, {
       method: "POST",
-      headers: searchHeaders,
+      headers: headers,
       body: JSON.stringify({
-        size: 1,
-        query: { term: { "query.enum": { value: query, case_insensitive: true } } },
-        sort: [{ count: { order: "desc", unmapped_type: "long" } }],
-        _source: ["query", "count", "noClick", "noResults"],
+        scripted_upsert: true,
+        upsert: {},
+        script: {
+          source: QUERY_LOG_SCRIPT,
+          lang: "painless",
+          params: { kind: click ? "count" : "noclick", results: !!results, query: query },
+        },
       }),
     });
-    var hits = response.data.hits.hits;
-
-    if (hits.length > 0) {
-      let hit = hits[0];
-      const queryId = hit._id;
-      const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${queryId}`;
-      let updateData = {};
-
-      var now = new Date().toISOString();
-
-      if (!click) {
-        if (hit._source.hasOwnProperty('noClick')) {
-          updateData = {
-            script: { source: "ctx._source.noClick += params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
-          };
-        } else {
-          updateData = {
-            script: { source: "ctx._source.noClick = params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
-          };
-        }
-      } else {
-        updateData = {
-          script: { source: "ctx._source.count += params.count; ctx._source.lastUpdated = params.now", params: { count: 1, now: now } }
-        };
-        if (!results) {
-          if (hit._source.hasOwnProperty('noResults')) {
-            updateData.script.source += "; ctx._source.noResults += 1";
-          } else {
-            updateData.script.source += "; ctx._source.noResults = 1";
-          }
-        }
-      }
-
-      await fetchJson(updateUrl, { method: "POST", headers: searchHeaders, body: JSON.stringify(updateData) });
-    } else {
-      // Sortie du champ sans clic sur une requête jamais comptée (moins de 4 lettres,
-      // ou atteinte en effaçant) : ce n'est pas une recherche à compter, et créer le
-      // document avec count 1 aurait compté la recherche en perdant le noClick.
-      if (!click) return;
-      const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_doc`;
-      var nowNew = new Date().toISOString();
-      const indexData = { query, count: 1, createdAt: nowNew, lastUpdated: nowNew };
-      if (!results) indexData.noResults = 1;
-      await fetchJson(indexUrl, { method: "POST", headers: searchHeaders, body: JSON.stringify(indexData) });
-    }
   } catch (error) {
     console.error(`Error updating query count: ${error.message}`);
   }
 }
+
 
 // ===== search-result-filter-2026-01-22.js =====
 var params = new URLSearchParams(location.search);
@@ -1087,9 +1061,7 @@ function goToPage(n) {
 }
 
 function displayPagination(totalResults, query){
-    // Même taille de page que la requête Elastic : avec 10 ici et 20 là-bas, la moitié
-    // des pages n'existait pas (« douleur » : 151 fiches, 16 pages affichées, 8 réelles ;
-    // les pages 9 à 16 montraient « 0 résultats trouvés… Voici quelques suggestions »).
+    // Même taille de page que la requête Elastic.
     const totalPages = Math.ceil(totalResults / RESULTS_PAGE_SIZE);
     const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
     if (!paginationDiv) return;
