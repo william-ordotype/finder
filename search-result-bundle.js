@@ -5,6 +5,8 @@
 // ===== ordotype-index-2026-04-07.js =====
 // ---------- Config ----------
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
+// Index name MUST start with `ordotype-index-20` (date): the public search key
+// (SEARCH_HEADERS) can read only `ordotype-index-20*`, any other name gets a 403.
 const ES_INDEX_STAGING = "ordotype-index-2026-06-02-c";
 const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02-c";
 
@@ -166,10 +168,14 @@ async function fetchJson(url, options) {
   return { data: await res.json() };
 }
 
+// Public by design (it ships to every browser): key `finder-search-public-2026-10`
+// can only READ the dated Finder indexes (`ordotype-index-20*`). The previous key
+// (`finder-readonly`) read EVERY index, including `ordotype-index-writers` (full
+// text of 6 593 contents, drafts and archived included) and `search-queries`.
 const SEARCH_HEADERS = {
   "Content-Type": "application/json",
   Authorization:
-    "ApiKey SEdpeW1wb0J5bkFkTnVyZVp3TUs6bTFuUDRhdDNRTEdnbWtrSEV4a3QwUQ==",
+    "ApiKey S1p5d0c2RUJ6bmczS0FNZFFuZE06SGY5bVZsRGdTby13QWR5Q2VINzVzZw==",
 };
 
 var MAX_CARRIED = 25;            // cap stored batch (defensive: writes failing across many navs)
