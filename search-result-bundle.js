@@ -155,7 +155,7 @@ if (searchBar) searchBar.addEventListener("input", (event) => {
 // competed with the result fetch on the same ES host. We never touch the result
 // render path; instead we log the FINAL settled query once, ~1s after the user
 // stops typing — so the first result still appears instantly.
-var loggedQueries = new Set();   // query strings already counted this page-load
+var loggedQueries = new Set();   // keys (queryKey) already counted this page-load
 var analyticsTimer;
 var pendingQueryLog = null;      // { query, results }
 var CARRIED_QUERY_KEY = "ot_pending_query_log";
@@ -195,8 +195,8 @@ function scheduleQueryLog(query, results) {
 function flushQueryLog() {
   var job = pendingQueryLog;
   pendingQueryLog = null;
-  if (!job || loggedQueries.has(job.query)) return;
-  loggedQueries.add(job.query);
+  if (!job || loggedQueries.has(queryKey(job.query))) return;
+  loggedQueries.add(queryKey(job.query));
   // Fire directly (not via requestIdleCallback): it's async network, doesn't
   // block render, and the 1s debounce already keeps it clear of the active
   // result fetch. Deferring further only widens the window where a navigation
@@ -213,18 +213,18 @@ function flushQueryLog() {
 // (window.location.href); `visibilitychange` covers mobile Safari, which fires
 // pagehide/unload unreliably.
 function carryPendingToNextLoad() {
-  if (!pendingQueryLog || loggedQueries.has(pendingQueryLog.query)) return;
+  if (!pendingQueryLog || loggedQueries.has(queryKey(pendingQueryLog.query))) return;
   var entry = pendingQueryLog;
   try {
     var existing = getItemWithExpiration(CARRIED_QUERY_KEY);
     var batch = Array.isArray(existing) ? existing : (existing ? [existing] : []);
-    if (!batch.some(function (e) { return e && e.query === entry.query; })) batch.push(entry);
+    if (!batch.some(function (e) { return e && queryKey(e.query) === queryKey(entry.query); })) batch.push(entry);
     if (batch.length > MAX_CARRIED) batch = batch.slice(-MAX_CARRIED);
     setItemWithExpiration(CARRIED_QUERY_KEY, batch, 24);
     // Only after the persist SUCCEEDS: mark logged + clear pending. If setItem
     // throws (private mode / quota), leave both intact so the 1s flush timer can
     // still count it on this live page.
-    loggedQueries.add(entry.query);
+    loggedQueries.add(queryKey(entry.query));
     pendingQueryLog = null;
   } catch (e) { /* storage full / private mode — best-effort */ }
 }
@@ -241,7 +241,7 @@ function replayCarriedQueryLog() {
   if (!carried) return;
   var batch = (Array.isArray(carried) ? carried : [carried]).filter(function (e) { return e && e.query; });
   if (!batch.length) { removeStored(CARRIED_QUERY_KEY); return; }
-  batch.forEach(function (e) { loggedQueries.add(e.query); });
+  batch.forEach(function (e) { loggedQueries.add(queryKey(e.query)); });
   removeStored(CARRIED_QUERY_KEY);
   batch.forEach(function (e) { updateQueryCount(e.query, e.results, true); });
 }
@@ -280,8 +280,8 @@ if (searchBar) searchBar.addEventListener('blur', () => {
 
    setTimeout(function() {
       if (query.length > 0) {
-        if (!noClickLogged.has(query)) {
-          noClickLogged.add(query);
+        if (!noClickLogged.has(queryKey(query))) {
+          noClickLogged.add(queryKey(query));
           updateQueryCount(query, true, false);
         }
         pushDataLayer({ event: "search_used", element: searchBar.id, query: query });
@@ -955,32 +955,24 @@ function displayResults(results, input, fromSuggest) {
 }
 
 // -------- Update query counts (Tunisia removed) --------
-// Identifiant du document d'une requête : SHA-1 de sa clé (texte NFC, espaces de bord
-// retirés, minuscules). Le comptage écrit directement sur ce document.
+// Clé d'une requête : texte NFC, espaces de bord retirés, minuscules. Une même clé =
+// un même document de comptage, et un seul comptage par page.
+function queryKey(query) {
+  return String(query).normalize("NFC").trim().toLowerCase();
+}
+
+// Identifiant du document d'une requête : SHA-1 de sa clé.
 async function queryDocId(query) {
-  var key = query.normalize("NFC").trim().toLowerCase();
+  var key = queryKey(query);
   var buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(key));
   return Array.prototype.map.call(new Uint8Array(buf), function (b) {
     return ("0" + b.toString(16)).slice(-2);
   }).join("");
 }
 
-// Un seul script, compilé une fois par Elastic (seuls les paramètres changent).
-// - Heure du serveur (ctx._now), pas celle du visiteur.
-// - Requête neuve : le document est créé avec le texte tapé (scripted_upsert).
-// - noClick sur une requête jamais comptée (moins de 4 lettres, ou atteinte en effaçant) :
-//   rien n'est créé (ctx.op = 'none'). Ce n'est pas une recherche à compter.
-var QUERY_LOG_SCRIPT =
-  "String now = Instant.ofEpochMilli(ctx._now).toString();" +
-  " if (params.kind == 'noclick') {" +
-  "   if (ctx.op == 'create') { ctx.op = 'none'; return; }" +
-  "   ctx._source.noClick = (ctx._source.noClick == null ? 0 : ctx._source.noClick) + 1;" +
-  " } else {" +
-  "   if (ctx.op == 'create') { ctx._source.query = params.query; ctx._source.count = 0; ctx._source.createdAt = now; }" +
-  "   ctx._source.count = (ctx._source.count == null ? 0 : ctx._source.count) + 1;" +
-  "   if (!params.results) { ctx._source.noResults = (ctx._source.noResults == null ? 0 : ctx._source.noResults) + 1; }" +
-  " }" +
-  " ctx._source.lastUpdated = now;";
+// Script stocké sur le serveur (finder-query-log) : heure du serveur, création des
+// requêtes neuves, rien de créé pour une sortie sans clic sur une requête jamais comptée.
+var QUERY_LOG_SCRIPT_ID = "finder-query-log";
 
 async function updateQueryCount(query, results = true, click = true) {
   try {
@@ -1008,7 +1000,7 @@ async function updateQueryCount(query, results = true, click = true) {
 
     var id = await queryDocId(query);
     // retry_on_conflict : deux visiteurs qui comptent la même requête au même instant.
-    var updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${id}?retry_on_conflict=3`;
+    var updateUrl = `${ES_BASE_URL}${indexName}/_update/${id}?retry_on_conflict=3`;
     // Public by design (it ships to every browser): key limited to `search-queries`.
     var headers = {
       "Content-Type": "application/json",
@@ -1022,8 +1014,7 @@ async function updateQueryCount(query, results = true, click = true) {
         scripted_upsert: true,
         upsert: {},
         script: {
-          source: QUERY_LOG_SCRIPT,
-          lang: "painless",
+          id: QUERY_LOG_SCRIPT_ID,
           params: { kind: click ? "count" : "noclick", results: !!results, query: query },
         },
       }),
