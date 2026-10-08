@@ -24,7 +24,7 @@ function displayPagination(totalResults, query){
         let link  = document.createElement('a');
         link.style.cssText = 'text-decoration: none;margin: 0px 10px; font-weight: 600; color: #0c0e16;';
         if (index === page) link.style.cssText = `background-color: ${activeColor}; color: white; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px; padding: 0; text-decoration: none;`;
-        link.setAttribute('href', `${baseUrl}/search-result?query=${query}&page=${index}`);
+        link.setAttribute('href', `${baseUrl}/search-result?query=${encodeURIComponent(query || '')}&page=${index}`);
         let number = document.createTextNode(index);
         link.addEventListener('click', (event) => {
           event.preventDefault();
@@ -97,7 +97,7 @@ function displayPagination(totalResults, query){
             break;
         }
   
-          link.setAttribute('href', `${baseUrl}/search-result?query=${query}&page=${href}`);
+          link.setAttribute('href', `${baseUrl}/search-result?query=${encodeURIComponent(query || '')}&page=${href}`);
           link.addEventListener('click', (event) => {
              event.preventDefault();
              page = href;
@@ -257,7 +257,7 @@ async function displayAll(){
             activeTab = el.currentTarget.getAttribute('data-w-tab');
             stringifiedFilter = transformString(el.target.innerText);
             activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
-            setItemWithExpiration('filterTemp', activeFilter, 24);
+            try { setItemWithExpiration('filterTemp', activeFilter, 24); } catch (e) { /* stockage refusé : filtre gardé pour cette page */ }
             page = 1;
             displayAll();
         })
