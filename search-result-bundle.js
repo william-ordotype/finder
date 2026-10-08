@@ -24,12 +24,12 @@ var RESULTS_PAGE_SIZE = 20;
 
 // -1 = aucun résultat surligné. Non initialisé, une flèche bas avant toute frappe
 // (valeur restaurée par le navigateur) donnait NaN, puis plantait (Sentry 1HK).
-let currentFocus = -1;
+var currentFocus = -1;
 
 // Numéro de la dernière recherche lancée depuis un champ : une réponse plus ancienne
 // arrivée après coup est ignorée (sinon elle repeignait d'anciens résultats, ou
 // rouvrait la liste sur un champ vidé).
-let searchSeq = 0;
+var searchSeq = 0;
 
 // Page de résultats, requête encodée : « & », « # », « % » ne coupent plus la
 // recherche (« HTA & grossesse » arrivait en « HTA »).
@@ -95,9 +95,13 @@ var PINNED_FIRST = {
 
 // Handle click outside of search results
 document.addEventListener("click", ({ target }) => {
-  // Un clic dans le champ déjà actif ne ferme pas la liste : sans nouveau focus,
-  // rien ne la rouvrait avant la frappe suivante.
-  if (target === searchBar) return;
+  // Un clic dans le champ actif ne ferme pas la liste : sans nouveau focus, rien ne
+  // la rouvrait avant la frappe suivante. Champ = toute sa zone (zone grise et loupe
+  // du panneau mobile, formulaire de la barre), sauf les boutons d'effacement.
+  if (searchBar) {
+    var zone = searchBar.closest(".search-panel_field, .ot-search-field") || searchBar.form || searchBar;
+    if (zone.contains(target) && !(target.closest && target.closest("button, [type='reset']"))) return;
+  }
   const searchResults = document.getElementById("search-results");
   if (searchResults && !searchResults.contains(target)) {
     searchResults.remove();
@@ -251,19 +255,27 @@ window.addEventListener("pageshow", function (e) {
   if (e.persisted) replayCarriedQueryLog();   // bfcache restore: module didn't re-init
 });
 
+// dataLayer créé s'il manque (GTM bloqué avant son extrait) : un push qui lève
+// arrêterait l'affichage ou le clic qui le suit.
+function pushDataLayer(evt) {
+  (window.dataLayer = window.dataLayer || []).push(evt);
+}
+
 function handleSendResultsToGA(element, query, resultCount) {
-   (window.dataLayer = window.dataLayer || []).push({ event: "show_search_results", element, query: query || "", result_count: resultCount == null ? 0 : resultCount });
+   pushDataLayer({ event: "show_search_results", element, query: query || "", result_count: resultCount == null ? 0 : resultCount });
 }
 
 function handleSendClickResultToGA(element, query, slug, position) {
-  (window.dataLayer = window.dataLayer || []).push({ event: "click_search_results", element, query: query || "", clicked_slug: slug || "", position: position == null ? 0 : position });
+  pushDataLayer({ event: "click_search_results", element, query: query || "", clicked_slug: slug || "", position: position == null ? 0 : position });
 }
 
-// Valeur posée par la page et pas encore modifiée : la requête de /search-result
-// reprise de l'adresse (defaultValue = value). Ce n'est pas une nouvelle recherche :
-// ni comptée, ni envoyée à GA au focus ou à la sortie du champ.
+// Valeur posée par la page et pas encore retouchée : la requête de /search-result
+// reprise de l'adresse (attribut data-prefill, retiré à la première frappe). Ce n'est
+// pas une nouvelle recherche : ni comptée, ni envoyée à GA au focus ou à la sortie du
+// champ. Pas defaultValue : le bouton « Effacer » est un type="reset", qui remettrait
+// alors la requête au lieu de vider le champ.
 function isPrefilled(input) {
-  return !!input && input.defaultValue !== "" && input.value === input.defaultValue;
+  return !!input && input.value !== "" && input.getAttribute("data-prefill") === input.value;
 }
 
 var noClickLogged = new Set();   // noClick compté une fois par requête et par page
@@ -277,7 +289,7 @@ if (searchBar) searchBar.addEventListener('blur', () => {
           noClickLogged.add(query);
           updateQueryCount(query, true, false);
         }
-        (window.dataLayer = window.dataLayer || []).push({ event: "search_used", element: searchBar.id, query: query });
+        pushDataLayer({ event: "search_used", element: searchBar.id, query: query });
       }
   }, 2000)
 });
@@ -285,10 +297,11 @@ if (searchBar) searchBar.addEventListener('blur', () => {
 async function clickEvent(activeFilter) {
   if (!searchBar) return;
   let query = searchBar.value.trim();
-  const seq = ++searchSeq;
+  var seq = ++searchSeq;
 
   const { results, fromSuggest } = await search(query, activeFilter);
-  if (seq !== searchSeq) return;
+  // Dépassée par une recherche plus récente, ou par une frappe encore dans son délai.
+  if (seq !== searchSeq || searchBar.value.trim() !== query) return;
 
   // La liste a pu être fermée pendant la recherche (Sentry 16J).
   const searchResults = document.getElementById("search-results");
@@ -318,14 +331,14 @@ async function inputEvent(input, e) {
   // No query: clear results and bail
   if (!query) {
     searchSeq++;
-    const open = document.querySelector("#search-results");
+    var open = document.querySelector("#search-results");
     if (open) open.remove();
     return false;
   }
 
   let results = [];
   let fromSuggest = false;
-  const seq = ++searchSeq;
+  var seq = ++searchSeq;
 
   try {
     const r = await search(query, activeFilter);
@@ -336,7 +349,13 @@ async function inputEvent(input, e) {
   }
 
   // Une frappe plus récente a relancé une recherche : cette réponse est dépassée.
-  if (seq !== searchSeq || input.value.trim() !== query) return false;
+  if (input.value.trim() !== query) return false;
+  if (seq !== searchSeq) {
+    // Même texte, mais un onglet de filtre ou le focus a relancé la recherche : on ne
+    // repeint pas (elle affichera sa réponse), la requête tapée reste comptée.
+    if (inputType !== "deleteContentBackward" && query.length > 3) scheduleQueryLog(query, results.length > 0);
+    return false;
+  }
 
   // No results path
   var isBlocked = BLOCKED_QUERIES.has(normalizeForBlocklist(query));
@@ -397,7 +416,7 @@ async function inputEvent(input, e) {
 if (searchBar) searchBar.addEventListener("focus", async (e) => {
   const isMobile = window.innerWidth < 767;
 
-  const target = e && e.target;
+  var target = e && e.target;
   const container =
     (target && target.closest && target.closest("#search-component, .search-component")) ||
     document.getElementById("search-component");
@@ -426,7 +445,7 @@ if (searchBar) searchBar.addEventListener("focus", async (e) => {
   const query = ((input && input.value) || "").trim();
   if (!query || isPrefilled(input)) return;
 
-  const seq = ++searchSeq;
+  var seq = ++searchSeq;
   const { results, fromSuggest } = await search(query, activeFilter);
   if (seq !== searchSeq || input.value.trim() !== query) return;
 
@@ -747,8 +766,8 @@ async function search(query, filter, page) {
     });
 
     const hits = response.data.hits.hits;
-    const suggest = response.data.suggest && response.data.suggest.med_suggest;
-    const suggestions = (suggest && suggest[0] && suggest[0].options) || [];
+    var suggest = response.data.suggest && response.data.suggest.med_suggest;
+    var suggestions = (suggest && suggest[0] && suggest[0].options) || [];
 
     const usingSuggestions = hits.length === 0 && suggestions.length > 0;
     const rawResults = usingSuggestions ? suggestions : hits;
@@ -756,7 +775,7 @@ async function search(query, filter, page) {
     // Nombre total de fiches trouvées : la pagination de /search-result le lit ici, une
     // fois la réponse jugée à jour (elle ne se dessine plus depuis search(), où une
     // réponse dépassée la redessinait).
-    const total = (response.data.hits.total && response.data.hits.total.value) || 0;
+    var total = (response.data.hits.total && response.data.hits.total.value) || 0;
 
     const results = rawResults.map((item) => {
       const src = item._source || {};
@@ -862,7 +881,7 @@ function displayResults(results, input, fromSuggest) {
           try { setItemWithExpiration('filterTemp', activeFilter, 24); } catch (e) { /* stockage refusé : filtre gardé pour cette page */ }
           // Onglet précédent cherché dans CETTE liste, et absent toléré : il pouvait
           // manquer et le clic s'arrêtait sur une erreur (Sentry 1JF).
-          const previous = (link.closest('#filter') || document).querySelector('a[data-w-tab="' + lastActiveTab + '"]');
+          var previous = (link.closest('#filter') || document).querySelector('a[data-w-tab="' + lastActiveTab + '"]');
           if (previous) previous.classList.remove('w--current');
           el.currentTarget.classList.add('w--current')
           lastActiveTab = el.currentTarget.getAttribute('data-w-tab');
@@ -961,13 +980,18 @@ async function updateQueryCount(query, results = true, click = true) {
       return;
     }
 
+    // Ni lettre ni chiffre (« ???? », « .... », « / ») : rien à compter. L'ancienne
+    // recherche Lucene échouait sur ces requêtes et n'écrivait rien.
+    if (!/[\p{L}\p{N}]/u.test(query)) return;
+
     // Document de CETTE requête. L'ancienne recherche (?q=query:<texte>) passait le texte
     // en syntaxe Lucene, mot par mot : « diabete type 2 » comptait sur le document
     // « Type », « infection urinaire » sur « urinaires », « : » ou « / » renvoyaient une
     // erreur 400 (comptage perdu), et 34 des 300 requêtes les plus tapées comptaient sur
-    // un autre document (« angine*$* » au lieu de « angine »). match_phrase n'a pas de
-    // syntaxe ; on garde le document dont le texte est exactement la requête (casse
-    // ignorée), le plus compté s'il y a des doublons. Vérifié sur les 300 : 300/300.
+    // un autre document (« angine*$* » au lieu de « angine »). Recherche exacte sur le
+    // sous-champ keyword `query.enum`, casse ignorée, le plus compté s'il y a des
+    // doublons : aucun plafond de résultats, aucune syntaxe. Vérifiée sur les 300
+    // requêtes les plus comptées (bon document, ou le plus compté de ses doublons).
     const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_search`;
     // Public by design (it ships to every browser): key `finder-search-queries-writer`
     // can only read and index in `search-queries`, no delete, no other index.
@@ -979,15 +1003,17 @@ async function updateQueryCount(query, results = true, click = true) {
     const response = await fetchJson(searchUrl, {
       method: "POST",
       headers: searchHeaders,
-      body: JSON.stringify({ size: 50, query: { match_phrase: { query: query } }, _source: ["query", "count", "noClick", "noResults"] }),
+      body: JSON.stringify({
+        size: 1,
+        query: { term: { "query.enum": { value: query, case_insensitive: true } } },
+        sort: [{ count: { order: "desc", unmapped_type: "long" } }],
+        _source: ["query", "count", "noClick", "noResults"],
+      }),
     });
-    const wanted = query.trim().toLowerCase();
-    const same = response.data.hits.hits
-      .filter((h) => String((h._source || {}).query || "").trim().toLowerCase() === wanted)
-      .sort((a, b) => (b._source.count || 0) - (a._source.count || 0));
+    var hits = response.data.hits.hits;
 
-    if (same.length > 0) {
-      let hit = same[0];
+    if (hits.length > 0) {
+      let hit = hits[0];
       const queryId = hit._id;
       const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${queryId}`;
       let updateData = {};
@@ -1019,6 +1045,10 @@ async function updateQueryCount(query, results = true, click = true) {
 
       await fetchJson(updateUrl, { method: "POST", headers: searchHeaders, body: JSON.stringify(updateData) });
     } else {
+      // Sortie du champ sans clic sur une requête jamais comptée (moins de 4 lettres,
+      // ou atteinte en effaçant) : ce n'est pas une recherche à compter, et créer le
+      // document avec count 1 aurait compté la recherche en perdant le noClick.
+      if (!click) return;
       const indexUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_doc`;
       var nowNew = new Date().toISOString();
       const indexData = { query, count: 1, createdAt: nowNew, lastUpdated: nowNew };
@@ -1034,10 +1064,12 @@ async function updateQueryCount(query, results = true, click = true) {
 var params = new URLSearchParams(location.search);
 var query = params.get("query");
 // Nombre, pas texte : « 1 » venu de l'adresse ne valait pas 1 dans la pagination
-// (page courante jamais surlignée à l'arrivée).
-var page = parseInt(params.get("page"), 10) || 1;
+// (page courante jamais surlignée à l'arrivée). Au moins 1 : « page=-1 » faisait
+// échouer la requête Elastic (from négatif).
+var page = Math.max(1, parseInt(params.get("page"), 10) || 1);
 var activeTab  = "Tab 1";
 var displaySeq = 0;   // dernière liste demandée : une réponse plus ancienne est ignorée
+var shownQueries = new Set();   // show_search_results envoyé une fois par requête et par page
 
 // Dans le bundle, remplace l'inputEvent de l'index (liste déroulante) : sur cette page,
 // la liste est la page elle-même. La frappe y est déjà suivie par onLiveInput (plus bas,
@@ -1162,7 +1194,7 @@ function clearAllPagination() {
 }
 
 async function displayAll(){
-    const seq = ++displaySeq;
+    var seq = ++displaySeq;
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
     if (!query) {
@@ -1186,7 +1218,15 @@ async function displayAll(){
     // la recherche, cette réponse est dépassée.
     if (seq !== displaySeq) return;
     const { results = [], fromSuggest = false, total = 0 } = searchResult || {};
-    const shownQuery = query;
+    var shownQuery = query;
+
+    // Page au-delà de la dernière (lien ou favori de l'ancienne pagination, qui
+    // affichait jusqu'au double de pages) : on sert la dernière page réelle au lieu
+    // de « 0 résultats… suggestions ».
+    if (total > 0 && (page - 1) * RESULTS_PAGE_SIZE >= total) {
+      page = Math.ceil(total / RESULTS_PAGE_SIZE);
+      return displayAll();
+    }
 
     resultList.innerHTML = '';
     currentFocus = -1;
@@ -1215,9 +1255,13 @@ async function displayAll(){
 
     displayPagination(total, query);
     // Affichage mesuré comme dans la liste déroulante (avec résultats seulement) : GA ne
-    // voyait rien de cette page, ni à l'arrivée ni à la frappe (l'inputEvent de l'index,
-    // qui mesure ailleurs, est remplacé ici).
-    handleSendResultsToGA("search-result-page", shownQuery, results.length);
+    // voyait rien de cette page (l'inputEvent de l'index, qui mesure ailleurs, est
+    // remplacé ici). Une fois par requête : un changement de page ou d'onglet n'est pas
+    // un nouvel affichage, et ne doit pas gonfler les affichages face aux clics.
+    if (!shownQueries.has(shownQuery)) {
+      shownQueries.add(shownQuery);
+      handleSendResultsToGA("search-result-page", shownQuery, results.length);
+    }
 
     results.forEach((result, index) => {
         if (result.filtres && result.filtres.includes("only")){
@@ -1264,7 +1308,7 @@ async function displayAll(){
            "text-decoration: none; color: #0c0e16; font-size: 16px; padding-top: 16px; padding-bottom: 16px; padding-left: 16px; padding-right: 8px; display: flex; align-items: center; justify-content:space-between";
     
         // Clic mesuré comme dans la liste déroulante (GA ne voyait aucun clic de cette page).
-        const position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
+        var position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
         resultElement.addEventListener("click", function(event) {
             event.preventDefault();
             handleSendClickResultToGA("search-result-page", shownQuery, result.Slug, position);
@@ -1326,14 +1370,18 @@ async function displayAll(){
     // w-tabs widget has bound its handlers. Otherwise link.click() silently
     // no-ops, leaving the visible tab on Tab 1 while results get written to
     // whichever tab matches the stored filterTemp - looks like "no results".
+    // The tab click handler above already renders: render here only when no stored
+    // filter selected a tab (it used to render twice, the first search thrown away).
     requestAnimationFrame(() => {
+        var tabClicked = false;
         document.querySelectorAll('#filter a').forEach((link) => {
             if (transformString(link.innerText) == activeFilter) {
               activeTab = link.getAttribute('data-w-tab');
               link.click();
+              tabClicked = true;
             }
         });
-        if (query != null) displayAll();
+        if (query != null && !tabClicked) displayAll();
     });
 
     // Live-refresh the main result list as the user types. Bind both bars
@@ -1359,8 +1407,17 @@ async function displayAll(){
       if (!bar) return;
       // Le champ visible (téléphone : #search-bar-main, ordinateur : #search-bar-nav)
       // reprend la requête de l'adresse ; il restait vide sur la page de ses résultats.
-      // defaultValue identique : l'index n'y voit pas une nouvelle recherche (isPrefilled).
-      if (query && !bar.value) { bar.defaultValue = query; bar.value = query; }
+      // data-prefill (retiré à la première frappe) : l'index n'y voit pas une nouvelle
+      // recherche (isPrefilled). Pas defaultValue : le bouton « Effacer » (type="reset")
+      // remettrait la requête au lieu de vider le champ.
+      if (query && !bar.value) {
+        bar.value = query;
+        bar.setAttribute('data-prefill', query);
+        bar.addEventListener('input', function clearPrefill() {
+          bar.removeAttribute('data-prefill');
+          bar.removeEventListener('input', clearPrefill);
+        });
+      }
       bar.addEventListener('input', () => onLiveInput(bar));
     });
   });

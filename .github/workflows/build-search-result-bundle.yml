@@ -32,6 +32,14 @@ jobs:
       - name: Validate the bundle parses (never publish a broken bundle)
         run: node --check search-result-bundle.js
 
+      # node --check accepts ?. and ??; the old hospital browsers do not. Gate the
+      # publish itself, not only the advisory parse-floor run beside it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Parse floor ES2019 (never publish a file Chrome 78 / Safari 12 cannot read)
+        run: ./check-parse-floor.sh
+
       - name: Commit & push if the bundle changed
         id: commit
         run: |

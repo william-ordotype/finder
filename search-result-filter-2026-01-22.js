@@ -1,10 +1,12 @@
 var params = new URLSearchParams(location.search);
 var query = params.get("query");
 // Nombre, pas texte : « 1 » venu de l'adresse ne valait pas 1 dans la pagination
-// (page courante jamais surlignée à l'arrivée).
-var page = parseInt(params.get("page"), 10) || 1;
+// (page courante jamais surlignée à l'arrivée). Au moins 1 : « page=-1 » faisait
+// échouer la requête Elastic (from négatif).
+var page = Math.max(1, parseInt(params.get("page"), 10) || 1);
 var activeTab  = "Tab 1";
 var displaySeq = 0;   // dernière liste demandée : une réponse plus ancienne est ignorée
+var shownQueries = new Set();   // show_search_results envoyé une fois par requête et par page
 
 // Dans le bundle, remplace l'inputEvent de l'index (liste déroulante) : sur cette page,
 // la liste est la page elle-même. La frappe y est déjà suivie par onLiveInput (plus bas,
@@ -129,7 +131,7 @@ function clearAllPagination() {
 }
 
 async function displayAll(){
-    const seq = ++displaySeq;
+    var seq = ++displaySeq;
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
     if (!query) {
@@ -153,7 +155,15 @@ async function displayAll(){
     // la recherche, cette réponse est dépassée.
     if (seq !== displaySeq) return;
     const { results = [], fromSuggest = false, total = 0 } = searchResult || {};
-    const shownQuery = query;
+    var shownQuery = query;
+
+    // Page au-delà de la dernière (lien ou favori de l'ancienne pagination, qui
+    // affichait jusqu'au double de pages) : on sert la dernière page réelle au lieu
+    // de « 0 résultats… suggestions ».
+    if (total > 0 && (page - 1) * RESULTS_PAGE_SIZE >= total) {
+      page = Math.ceil(total / RESULTS_PAGE_SIZE);
+      return displayAll();
+    }
 
     resultList.innerHTML = '';
     currentFocus = -1;
@@ -182,9 +192,13 @@ async function displayAll(){
 
     displayPagination(total, query);
     // Affichage mesuré comme dans la liste déroulante (avec résultats seulement) : GA ne
-    // voyait rien de cette page, ni à l'arrivée ni à la frappe (l'inputEvent de l'index,
-    // qui mesure ailleurs, est remplacé ici).
-    handleSendResultsToGA("search-result-page", shownQuery, results.length);
+    // voyait rien de cette page (l'inputEvent de l'index, qui mesure ailleurs, est
+    // remplacé ici). Une fois par requête : un changement de page ou d'onglet n'est pas
+    // un nouvel affichage, et ne doit pas gonfler les affichages face aux clics.
+    if (!shownQueries.has(shownQuery)) {
+      shownQueries.add(shownQuery);
+      handleSendResultsToGA("search-result-page", shownQuery, results.length);
+    }
 
     results.forEach((result, index) => {
         if (result.filtres && result.filtres.includes("only")){
@@ -231,7 +245,7 @@ async function displayAll(){
            "text-decoration: none; color: #0c0e16; font-size: 16px; padding-top: 16px; padding-bottom: 16px; padding-left: 16px; padding-right: 8px; display: flex; align-items: center; justify-content:space-between";
     
         // Clic mesuré comme dans la liste déroulante (GA ne voyait aucun clic de cette page).
-        const position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
+        var position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
         resultElement.addEventListener("click", function(event) {
             event.preventDefault();
             handleSendClickResultToGA("search-result-page", shownQuery, result.Slug, position);
@@ -293,14 +307,18 @@ async function displayAll(){
     // w-tabs widget has bound its handlers. Otherwise link.click() silently
     // no-ops, leaving the visible tab on Tab 1 while results get written to
     // whichever tab matches the stored filterTemp - looks like "no results".
+    // The tab click handler above already renders: render here only when no stored
+    // filter selected a tab (it used to render twice, the first search thrown away).
     requestAnimationFrame(() => {
+        var tabClicked = false;
         document.querySelectorAll('#filter a').forEach((link) => {
             if (transformString(link.innerText) == activeFilter) {
               activeTab = link.getAttribute('data-w-tab');
               link.click();
+              tabClicked = true;
             }
         });
-        if (query != null) displayAll();
+        if (query != null && !tabClicked) displayAll();
     });
 
     // Live-refresh the main result list as the user types. Bind both bars
@@ -326,8 +344,17 @@ async function displayAll(){
       if (!bar) return;
       // Le champ visible (téléphone : #search-bar-main, ordinateur : #search-bar-nav)
       // reprend la requête de l'adresse ; il restait vide sur la page de ses résultats.
-      // defaultValue identique : l'index n'y voit pas une nouvelle recherche (isPrefilled).
-      if (query && !bar.value) { bar.defaultValue = query; bar.value = query; }
+      // data-prefill (retiré à la première frappe) : l'index n'y voit pas une nouvelle
+      // recherche (isPrefilled). Pas defaultValue : le bouton « Effacer » (type="reset")
+      // remettrait la requête au lieu de vider le champ.
+      if (query && !bar.value) {
+        bar.value = query;
+        bar.setAttribute('data-prefill', query);
+        bar.addEventListener('input', function clearPrefill() {
+          bar.removeAttribute('data-prefill');
+          bar.removeEventListener('input', clearPrefill);
+        });
+      }
       bar.addEventListener('input', () => onLiveInput(bar));
     });
   });
