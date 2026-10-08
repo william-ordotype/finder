@@ -24,9 +24,7 @@ function goToPage(n) {
 }
 
 function displayPagination(totalResults, query){
-    // Même taille de page que la requête Elastic : avec 10 ici et 20 là-bas, la moitié
-    // des pages n'existait pas (« douleur » : 151 fiches, 16 pages affichées, 8 réelles ;
-    // les pages 9 à 16 montraient « 0 résultats trouvés… Voici quelques suggestions »).
+    // Même taille de page que la requête Elastic.
     const totalPages = Math.ceil(totalResults / RESULTS_PAGE_SIZE);
     const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
     if (!paginationDiv) return;

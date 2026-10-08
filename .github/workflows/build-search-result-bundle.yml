@@ -32,7 +32,7 @@ jobs:
       - name: Validate the bundle parses (never publish a broken bundle)
         run: node --check search-result-bundle.js
 
-      # node --check accepts ?. and ??; the old hospital browsers do not. Gate the
+      # node --check accepts ?. and ??; older browsers do not. Gate the
       # publish itself, not only the advisory parse-floor run beside it.
       - uses: actions/setup-node@v4
         with:

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 #
-# Parse-floor gate: the files the site loads must parse as ES2019 (Chrome 78 /
-# Safari 12 on hospital computers; one ?. or ?? kept the whole finder from
-# starting there, Sentry ORDOTYPE-FRONTEND-1F6).
+# Parse-floor gate: the files the site loads must parse as ES2019 (older browsers).
 #
 # The file list comes from build-search-result-bundle.sh (INDEX + FILTER, the
 # files the loader serves) plus the bundle: bumping a source version there is
