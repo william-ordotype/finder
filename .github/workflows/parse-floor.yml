@@ -1,0 +1,18 @@
+# Parse-floor gate: fails the build if a file the site loads contains syntax newer
+# than ES2019 (?., ??, class fields...). One such token makes the WHOLE file fail to
+# parse on the old hospital browsers (Chrome 78 / Safari 12) that still browse the
+# site - Sentry ORDOTYPE-FRONTEND-1F6. Rule set and file list: eslint.config.js.
+# Keep the file list in sync with build-search-result-bundle.sh when a source is bumped.
+name: parse-floor
+on:
+  push:
+  pull_request:
+jobs:
+  es2019-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx --yes eslint@10 ordotype-index-2026-04-07.js search-result-filter-2026-01-22.js search-result-bundle.js

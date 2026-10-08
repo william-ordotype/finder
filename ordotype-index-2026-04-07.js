@@ -12,7 +12,17 @@ const ES_URL = `${ES_BASE_URL}${ES_INDEX}`;
 
 const baseUrl = window.location.origin;
 
-let currentFocus;
+// Résultats par page sur /search-result (requête Elastic et pagination).
+var RESULTS_PAGE_SIZE = 20;
+
+// -1 = aucun résultat surligné. Non initialisé, une flèche bas avant toute frappe
+// (valeur restaurée par le navigateur) donnait NaN, puis plantait (Sentry 1HK).
+let currentFocus = -1;
+
+// Numéro de la dernière recherche lancée depuis un champ : une réponse plus ancienne
+// arrivée après coup est ignorée (sinon elle repeignait d'anciens résultats, ou
+// rouvrait la liste sur un champ vidé).
+let searchSeq = 0;
 
 // Page de résultats, requête encodée : « & », « # », « % » ne coupent plus la
 // recherche (« HTA & grossesse » arrivait en « HTA »).
@@ -78,6 +88,9 @@ var PINNED_FIRST = {
 
 // Handle click outside of search results
 document.addEventListener("click", ({ target }) => {
+  // Un clic dans le champ déjà actif ne ferme pas la liste : sans nouveau focus,
+  // rien ne la rouvrait avant la frappe suivante.
+  if (target === searchBar) return;
   const searchResults = document.getElementById("search-results");
   if (searchResults && !searchResults.contains(target)) {
     searchResults.remove();
@@ -98,11 +111,14 @@ var lastActiveTab = 'Tab 1';
 const planIds = ['pln_compte-praticien-offre-speciale-500-premiers--893z0o60', 'pln_praticien-belgique-2p70qka'];
 var memberData;
 try {
-  memberData = JSON.parse(localStorage.getItem('_ms-mem') || '{}');
+  memberData = JSON.parse(localStorage.getItem('_ms-mem') || '{}') || {};
 } catch (e) {
   memberData = {};
 }
-const activePlanIds = memberData.planConnections?.filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId) || [];
+// Syntaxe ES2019 seulement dans ce fichier (pas de « ?. » ni de « ?? ») : les
+// navigateurs des postes hospitaliers (Chrome 78, Safari 12) ne savaient pas lire
+// le fichier, qui ne démarrait pas du tout (Sentry 1F6). Vérifié par parse-floor.
+const activePlanIds = (memberData.planConnections || []).filter(item => item.status === "ACTIVE" || item.status == "REQUIRES_PAYMENT").map(item => item.planId);
 let activeFilter = (getItemWithExpiration('filterTemp'))
     || (
       ((activePlanIds.length === 1 && planIds.includes(activePlanIds[0]))
@@ -117,7 +133,7 @@ let activeFilter = (getItemWithExpiration('filterTemp'))
 // Adaptive debounce: instant for short queries (1-2 chars) so single-letter
 // browsing feels live; small delay for longer queries to coalesce fast typing.
 let searchDebounceTimer;
-searchBar?.addEventListener("input", (event) => {
+if (searchBar) searchBar.addEventListener("input", (event) => {
   clearTimeout(searchDebounceTimer);
   const len = searchBar.value.trim().length;
   const delay = len <= 2 ? 0 : 150;
@@ -225,37 +241,54 @@ window.addEventListener("pageshow", function (e) {
 });
 
 function handleSendResultsToGA(element, query, resultCount) {
-   window.dataLayer.push({ event: "show_search_results", element, query: query || "", result_count: resultCount ?? 0 });
+   (window.dataLayer = window.dataLayer || []).push({ event: "show_search_results", element, query: query || "", result_count: resultCount == null ? 0 : resultCount });
 }
 
 function handleSendClickResultToGA(element, query, slug, position) {
-  window.dataLayer.push({ event: "click_search_results", element, query: query || "", clicked_slug: slug || "", position: position ?? 0 });
+  (window.dataLayer = window.dataLayer || []).push({ event: "click_search_results", element, query: query || "", clicked_slug: slug || "", position: position == null ? 0 : position });
 }
 
-searchBar?.addEventListener('blur', () => {
+// Valeur posée par la page et pas encore modifiée : la requête de /search-result
+// reprise de l'adresse (defaultValue = value). Ce n'est pas une nouvelle recherche :
+// ni comptée, ni envoyée à GA au focus ou à la sortie du champ.
+function isPrefilled(input) {
+  return !!input && input.defaultValue !== "" && input.value === input.defaultValue;
+}
+
+var noClickLogged = new Set();   // noClick compté une fois par requête et par page
+if (searchBar) searchBar.addEventListener('blur', () => {
    var query = searchBar.value.trim()
+   if (isPrefilled(searchBar)) return;
 
    setTimeout(function() {
       if (query.length > 0) {
-        updateQueryCount(query, true, false);
-        window.dataLayer.push({ event: "search_used", element: searchBar.id, query: query });
+        if (!noClickLogged.has(query)) {
+          noClickLogged.add(query);
+          updateQueryCount(query, true, false);
+        }
+        (window.dataLayer = window.dataLayer || []).push({ event: "search_used", element: searchBar.id, query: query });
       }
   }, 2000)
 });
 
 async function clickEvent(activeFilter) {
-  const searchBar = searchBarMain || searchBarNav;
+  if (!searchBar) return;
   let query = searchBar.value.trim();
+  const seq = ++searchSeq;
 
   const { results, fromSuggest } = await search(query, activeFilter);
+  if (seq !== searchSeq) return;
 
+  // La liste a pu être fermée pendant la recherche (Sentry 16J).
   const searchResults = document.getElementById("search-results");
+  if (!searchResults) return;
 
   if (results.length === 0) {
     let searchResultInner =
       searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
 
-    searchResultInner.innerHTML =
+    // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
+    if (searchResultInner) searchResultInner.textContent =
       `Pas de résultats pour "${query}", dans ce module.`;
 
     return true;
@@ -269,24 +302,30 @@ async function inputEvent(input, e) {
   currentFocus = -1;
 
   const query = input.value.trim();
-  const inputType = e?.inputType; // may be undefined
+  const inputType = e && e.inputType; // may be undefined
 
   // No query: clear results and bail
   if (!query) {
-    document.querySelector("#search-results")?.remove();
+    searchSeq++;
+    const open = document.querySelector("#search-results");
+    if (open) open.remove();
     return false;
   }
 
   let results = [];
   let fromSuggest = false;
+  const seq = ++searchSeq;
 
   try {
     const r = await search(query, activeFilter);
-    results = r.results ?? [];
-    fromSuggest = r.fromSuggest ?? false;
+    results = r.results || [];
+    fromSuggest = !!r.fromSuggest;
   } catch (err) {
     console.error("search() failed:", err);
   }
+
+  // Une frappe plus récente a relancé une recherche : cette réponse est dépassée.
+  if (seq !== searchSeq || input.value.trim() !== query) return false;
 
   // No results path
   var isBlocked = BLOCKED_QUERIES.has(normalizeForBlocklist(query));
@@ -303,7 +342,7 @@ async function inputEvent(input, e) {
     }
 
     // No previous results — show "no results" message
-    existing?.remove();
+    if (existing) existing.remove();
 
     const searchResults = document.createElement("div");
     searchResults.id = "search-results";
@@ -321,7 +360,8 @@ async function inputEvent(input, e) {
     searchResults.style.top = isMain ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
     searchResults.style.zIndex = isMain ? "9999" : "10000";
 
-    searchResults.innerHTML =
+    // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
+    searchResults.textContent =
       `Pas de résultats pour "${query}". Vérifiez l'orthographe de votre recherche`;
     document.body.appendChild(searchResults);
 
@@ -343,11 +383,12 @@ async function inputEvent(input, e) {
   return true;
 }
 
-searchBar?.addEventListener("focus", async (e) => {
+if (searchBar) searchBar.addEventListener("focus", async (e) => {
   const isMobile = window.innerWidth < 767;
 
+  const target = e && e.target;
   const container =
-    e?.target?.closest("#search-component, .search-component") ||
+    (target && target.closest && target.closest("#search-component, .search-component")) ||
     document.getElementById("search-component");
 
   if (isMobile && container) {
@@ -370,11 +411,13 @@ searchBar?.addEventListener("focus", async (e) => {
     }
   }
 
-  const input = e?.target ?? searchBar;
-  const query = input?.value?.trim() || "";
-  if (!query) return;
+  const input = target || searchBar;
+  const query = ((input && input.value) || "").trim();
+  if (!query || isPrefilled(input)) return;
 
+  const seq = ++searchSeq;
   const { results, fromSuggest } = await search(query, activeFilter);
+  if (seq !== searchSeq || input.value.trim() !== query) return;
 
   if (typeof searchBarMain !== "undefined" && searchBarMain) {
     handleSendResultsToGA("search-bar-focus", query, results.length);
@@ -389,7 +432,7 @@ searchBar?.addEventListener("focus", async (e) => {
 
 
 
-searchBar?.addEventListener("keydown", (e) => {
+if (searchBar) searchBar.addEventListener("keydown", (e) => {
   if (e.key === 'Enter') {
      e.preventDefault();
  }
@@ -406,18 +449,13 @@ if (searchBtn) {
   });
 }
 
+// Flèches haut/bas : seulement entre les résultats (a.search-result), plus entre les
+// onglets de filtre. L'ancien départ « currentFocus = 3 » sautait en dur les 4 onglets
+// d'aujourd'hui : un onglet ajouté dans le Designer décalait toute la navigation.
 function keyDownEvent(e) {
-  var x = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`));
-  if (x) {
-     x = x.getElementsByTagName("a");
-  } else {
-     if (e.keyCode == 13) {
-        const query = e.currentTarget.value.trim();
-        window.location.href = searchResultUrl(query);
-     }
-  }
+  var box = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`));
+  var x = box ? box.querySelectorAll("a.search-result") : null;
   if (e.keyCode == 40) {
-    if (currentFocus == -1 && !window.location.pathname.includes("search-result")) currentFocus = 3;
     currentFocus++;
     addActive(x);
   } else if (e.keyCode == 38) {
@@ -425,17 +463,17 @@ function keyDownEvent(e) {
     addActive(x);
   } else if (e.keyCode == 13) {
     e.preventDefault();
-    if (currentFocus > -1) {
-      if (x) x[currentFocus].click();
+    if (x && x[currentFocus]) {
+      x[currentFocus].click();
     } else {
-        const query = e.currentTarget.value.trim();
-        window.location.href = searchResultUrl(query);
+      const query = e.currentTarget.value.trim();
+      if (query) window.location.href = searchResultUrl(query);
     }
   }
 }
 
 function addActive(x) {
-  if (!x) return false;
+  if (!x || !x.length) return false;
   removeActive(x);
   if (currentFocus >= x.length) currentFocus = 0;
   if (currentFocus < 0) currentFocus = x.length - 1;
@@ -686,8 +724,8 @@ async function search(query, filter, page) {
           },
         },
         _source: ["Name", "Slug", "Logo_for_finder_URL", "Wording_Logo", "Filtres"],
-        size: page ? 20 : 10,
-        from: page ? page * 20 - 20 : 0,
+        size: page ? RESULTS_PAGE_SIZE : 10,
+        from: page ? (page - 1) * RESULTS_PAGE_SIZE : 0,
         sort: [
           { _score: { order: "desc" } },
           { Alias: { order: "desc", missing: "_last" } },
@@ -697,16 +735,20 @@ async function search(query, filter, page) {
       }),
     });
 
-     const hits = response.data.hits.hits;
-   const suggestions = response.data.suggest?.med_suggest?.[0]?.options ?? [];
+    const hits = response.data.hits.hits;
+    const suggest = response.data.suggest && response.data.suggest.med_suggest;
+    const suggestions = (suggest && suggest[0] && suggest[0].options) || [];
 
     const usingSuggestions = hits.length === 0 && suggestions.length > 0;
     const rawResults = usingSuggestions ? suggestions : hits;
 
-    page && displayPagination(response.data.hits.total.value, query);
+    // Nombre total de fiches trouvées : la pagination de /search-result le lit ici, une
+    // fois la réponse jugée à jour (elle ne se dessine plus depuis search(), où une
+    // réponse dépassée la redessinait).
+    const total = (response.data.hits.total && response.data.hits.total.value) || 0;
 
     const results = rawResults.map((item) => {
-      const src = item._source ?? {};
+      const src = item._source || {};
       return {
         Name: src.Name,
         Slug: src.Slug,
@@ -723,10 +765,10 @@ async function search(query, filter, page) {
       if (pinIdx > 0) results.unshift(results.splice(pinIdx, 1)[0]);
     }
 
-    return { results, fromSuggest: usingSuggestions };
+    return { results, fromSuggest: usingSuggestions, total };
   } catch (error) {
     console.error(error);
-    return { results: [], fromSuggest: false };
+    return { results: [], fromSuggest: false, total: 0 };
   }
 }
 
@@ -734,6 +776,7 @@ async function search(query, filter, page) {
 function displayResults(results, input, fromSuggest) {
   let resultList = document.getElementById("search-results");
   let searchResultInner = "";
+  currentFocus = -1;   // nouvelle liste : plus rien de surligné
 
   if (resultList) {
     var searchResult = resultList.querySelector('#filter');
@@ -805,8 +848,11 @@ function displayResults(results, input, fromSuggest) {
           el.preventDefault();
           stringifiedFilter = transformString(el.target.innerText);
           activeFilter = el.target.innerText != "Tous les résultats" ? stringifiedFilter : "";
-          setItemWithExpiration('filterTemp', activeFilter, 24);
-          document.querySelector('#filter a[data-w-tab="'+lastActiveTab+'"]').classList.remove('w--current');
+          try { setItemWithExpiration('filterTemp', activeFilter, 24); } catch (e) { /* stockage refusé : filtre gardé pour cette page */ }
+          // Onglet précédent cherché dans CETTE liste, et absent toléré : il pouvait
+          // manquer et le clic s'arrêtait sur une erreur (Sentry 1JF).
+          const previous = (link.closest('#filter') || document).querySelector('a[data-w-tab="' + lastActiveTab + '"]');
+          if (previous) previous.classList.remove('w--current');
           el.currentTarget.classList.add('w--current')
           lastActiveTab = el.currentTarget.getAttribute('data-w-tab');
           clickEvent(activeFilter);
@@ -853,8 +899,12 @@ function displayResults(results, input, fromSuggest) {
     div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16; font-size: 14px;border-radius:4px;white-space: nowrap;";
     div.style.backgroundColor = "transparent";
 
+    // Icône seule (téléphone, barre de navigation) : son libellé devient le texte
+    // alternatif ; à côté du libellé écrit, elle est décorative.
+    img.alt = result.wordingLogo || "";
     if (window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav"){
       div.appendChild(document.createTextNode(result.wordingLogo));
+      img.alt = "";
       img.style.marginLeft = "5px";
       div.style.padding = "2px 8px";
     }
@@ -900,7 +950,14 @@ async function updateQueryCount(query, results = true, click = true) {
       return;
     }
 
-    const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_search?q=query:${encodeURIComponent(query)}`;
+    // Document de CETTE requête. L'ancienne recherche (?q=query:<texte>) passait le texte
+    // en syntaxe Lucene, mot par mot : « diabete type 2 » comptait sur le document
+    // « Type », « infection urinaire » sur « urinaires », « : » ou « / » renvoyaient une
+    // erreur 400 (comptage perdu), et 34 des 300 requêtes les plus tapées comptaient sur
+    // un autre document (« angine*$* » au lieu de « angine »). match_phrase n'a pas de
+    // syntaxe ; on garde le document dont le texte est exactement la requête (casse
+    // ignorée), le plus compté s'il y a des doublons. Vérifié sur les 300 : 300/300.
+    const searchUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_search`;
     // Public by design (it ships to every browser): key `finder-search-queries-writer`
     // can only read and index in `search-queries`, no delete, no other index.
     const searchHeaders = {
@@ -908,11 +965,18 @@ async function updateQueryCount(query, results = true, click = true) {
       Authorization:
         "ApiKey N3B6V3M2QUJ6bmczS0FNZFQyS046Z0RDS0FXZWVTRUdTUkVqcFZfVHJidw==",
     };
-    const response = await fetchJson(searchUrl, { headers: searchHeaders });
-    const hits = response.data.hits.total.value;
+    const response = await fetchJson(searchUrl, {
+      method: "POST",
+      headers: searchHeaders,
+      body: JSON.stringify({ size: 50, query: { match_phrase: { query: query } }, _source: ["query", "count", "noClick", "noResults"] }),
+    });
+    const wanted = query.trim().toLowerCase();
+    const same = response.data.hits.hits
+      .filter((h) => String((h._source || {}).query || "").trim().toLowerCase() === wanted)
+      .sort((a, b) => (b._source.count || 0) - (a._source.count || 0));
 
-    if (hits > 0) {
-      let hit = response.data.hits.hits[0];
+    if (same.length > 0) {
+      let hit = same[0];
       const queryId = hit._id;
       const updateUrl = `https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/${indexName}/_update/${queryId}`;
       let updateData = {};

@@ -1,17 +1,31 @@
 var params = new URLSearchParams(location.search);
 var query = params.get("query");
-var page = params.get("page") ?? 1;
+// Nombre, pas texte : « 1 » venu de l'adresse ne valait pas 1 dans la pagination
+// (page courante jamais surlignée à l'arrivée).
+var page = parseInt(params.get("page"), 10) || 1;
 var activeTab  = "Tab 1";
+var displaySeq = 0;   // dernière liste demandée : une réponse plus ancienne est ignorée
 
+// Dans le bundle, remplace l'inputEvent de l'index (liste déroulante) : sur cette page,
+// la liste est la page elle-même. La frappe y est déjà suivie par onLiveInput (plus bas,
+// sur les deux champs) : relancer displayAll ici doublait chaque recherche Elastic.
 async function inputEvent(input, e) {
   currentFocus = -1;
-  query = input.value.trim();
-  page = 1;
+}
+
+// Retour en haut de la liste au changement de page : sinon la nouvelle page s'affichait
+// sous les yeux d'un lecteur resté en bas, sur la pagination.
+function goToPage(n) {
+  page = n;
   displayAll();
+  window.scrollTo(0, 0);
 }
 
 function displayPagination(totalResults, query){
-    const totalPages = Math.ceil(totalResults / 10);
+    // Même taille de page que la requête Elastic : avec 10 ici et 20 là-bas, la moitié
+    // des pages n'existait pas (« douleur » : 151 fiches, 16 pages affichées, 8 réelles ;
+    // les pages 9 à 16 montraient « 0 résultats trouvés… Voici quelques suggestions »).
+    const totalPages = Math.ceil(totalResults / RESULTS_PAGE_SIZE);
     const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
     if (!paginationDiv) return;
     paginationDiv.innerHTML = '';
@@ -28,8 +42,7 @@ function displayPagination(totalResults, query){
         let number = document.createTextNode(index);
         link.addEventListener('click', (event) => {
           event.preventDefault();
-          page = index;
-          displayAll();
+          goToPage(index);
         });
         link.appendChild(number);
         paginationDiv.appendChild(link);
@@ -100,8 +113,7 @@ function displayPagination(totalResults, query){
           link.setAttribute('href', `${baseUrl}/search-result?query=${encodeURIComponent(query || '')}&page=${href}`);
           link.addEventListener('click', (event) => {
              event.preventDefault();
-             page = href;
-             displayAll();
+             goToPage(href);
           })
           link.appendChild(number);
           paginationDiv.appendChild(link);
@@ -117,6 +129,7 @@ function clearAllPagination() {
 }
 
 async function displayAll(){
+    const seq = ++displaySeq;
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
     if (!query) {
@@ -136,9 +149,14 @@ async function displayAll(){
       console.error("search() failed:", err);
       return;
     }
-    const { results = [], fromSuggest = false } = searchResult || {};
+    // Liste en direct : une frappe ou un changement de page plus récent a déjà relancé
+    // la recherche, cette réponse est dépassée.
+    if (seq !== displaySeq) return;
+    const { results = [], fromSuggest = false, total = 0 } = searchResult || {};
+    const shownQuery = query;
 
     resultList.innerHTML = '';
+    currentFocus = -1;
 
     // Aucun résultat et aucune suggestion
     if (results.length === 0) {
@@ -161,8 +179,14 @@ async function displayAll(){
       info.style.color = "#555";
       resultList.appendChild(info);
     }
-  
-    results.forEach((result) => {
+
+    displayPagination(total, query);
+    // Affichage mesuré comme dans la liste déroulante (avec résultats seulement) : GA ne
+    // voyait rien de cette page, ni à l'arrivée ni à la frappe (l'inputEvent de l'index,
+    // qui mesure ailleurs, est remplacé ici).
+    handleSendResultsToGA("search-result-page", shownQuery, results.length);
+
+    results.forEach((result, index) => {
         if (result.filtres && result.filtres.includes("only")){
           let filter;
           if (activeFilter == "") {
@@ -206,9 +230,11 @@ async function displayAll(){
         resultElement.style.cssText =
            "text-decoration: none; color: #0c0e16; font-size: 16px; padding-top: 16px; padding-bottom: 16px; padding-left: 16px; padding-right: 8px; display: flex; align-items: center; justify-content:space-between";
     
+        // Clic mesuré comme dans la liste déroulante (GA ne voyait aucun clic de cette page).
+        const position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
         resultElement.addEventListener("click", function(event) {
             event.preventDefault();
-            // handleSendClickResultToGA(input.id);
+            handleSendClickResultToGA("search-result-page", shownQuery, result.Slug, position);
             window.location.href = `${baseUrl}/pathologies/${result.Slug}`;
         });
     
@@ -297,6 +323,11 @@ async function displayAll(){
     };
     ['search-bar-main', 'search-bar-nav'].forEach((id) => {
       const bar = document.getElementById(id);
-      bar?.addEventListener('input', () => onLiveInput(bar));
+      if (!bar) return;
+      // Le champ visible (téléphone : #search-bar-main, ordinateur : #search-bar-nav)
+      // reprend la requête de l'adresse ; il restait vide sur la page de ses résultats.
+      // defaultValue identique : l'index n'y voit pas une nouvelle recherche (isPrefilled).
+      if (query && !bar.value) { bar.defaultValue = query; bar.value = query; }
+      bar.addEventListener('input', () => onLiveInput(bar));
     });
   });
