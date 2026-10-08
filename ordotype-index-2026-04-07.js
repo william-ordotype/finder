@@ -14,6 +14,31 @@ const baseUrl = window.location.origin;
 
 let currentFocus;
 
+// Page de résultats, requête encodée : « & », « # », « % » ne coupent plus la
+// recherche (« HTA & grossesse » arrivait en « HTA »).
+function searchResultUrl(query) {
+  return `${baseUrl}/search-result?query=${encodeURIComponent(query)}&page=1`;
+}
+
+// Les champs de recherche (#search-bar-main, #search-bar-nav) sont de vrais
+// formulaires Webflow sans bouton d'envoi : toute touche Entrée que le moteur
+// n'intercepte pas (champ non branché, saisie en cours de composition sur un
+// clavier de téléphone, moteur qui n'a pas fini de démarrer) envoyait le
+// formulaire à Webflow au lieu de chercher (~2 450 envois depuis 2024, mails
+// « wf-form- » et « search bar form »), et Webflow masquait le champ. Tout envoi
+// d'un de ces formulaires devient une recherche. Écouté en capture sur document,
+// avant le gestionnaire de Webflow ; posé en tête de fichier, avant tout ce qui
+// peut échouer au démarrage (stockage refusé).
+document.addEventListener("submit", (e) => {
+  const form = e.target;
+  const field = form && form.querySelector && form.querySelector("#search-bar-main, #search-bar-nav");
+  if (!field) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  const query = field.value.trim();
+  if (query) window.location.href = searchResultUrl(query);
+}, true);
+
 // Blocklist: queries with no matching fiche — return empty results
 // instead of misleading fuzzy matches. Remove a term when its fiche is created.
 // See: https://www.notion.so/ordotype/32f30a1b750f81a0ab35fdcdc6b4a910
@@ -189,9 +214,9 @@ function replayCarriedQueryLog() {
   var carried = getItemWithExpiration(CARRIED_QUERY_KEY);
   if (!carried) return;
   var batch = (Array.isArray(carried) ? carried : [carried]).filter(function (e) { return e && e.query; });
-  if (!batch.length) { localStorage.removeItem(CARRIED_QUERY_KEY); return; }
+  if (!batch.length) { removeStored(CARRIED_QUERY_KEY); return; }
   batch.forEach(function (e) { loggedQueries.add(e.query); });
-  localStorage.removeItem(CARRIED_QUERY_KEY);
+  removeStored(CARRIED_QUERY_KEY);
   batch.forEach(function (e) { updateQueryCount(e.query, e.results, true); });
 }
 replayCarriedQueryLog();
@@ -374,9 +399,10 @@ searchBar?.addEventListener("keydown", (e) => {
 const searchBtn = document.getElementById("search-btn");
 
 if (searchBtn) {
-  searchBtn.addEventListener('click', () => {
+  searchBtn.addEventListener('click', (e) => {
+    e.preventDefault(); // lien « # » : pas d'ancre ajoutée à l'adresse avant de partir
     const query = document.getElementById("search-bar-main").value.trim();
-    window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+    window.location.href = searchResultUrl(query);
   });
 }
 
@@ -387,7 +413,7 @@ function keyDownEvent(e) {
   } else {
      if (e.keyCode == 13) {
         const query = e.currentTarget.value.trim();
-        window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+        window.location.href = searchResultUrl(query);
      }
   }
   if (e.keyCode == 40) {
@@ -403,7 +429,7 @@ function keyDownEvent(e) {
       if (x) x[currentFocus].click();
     } else {
         const query = e.currentTarget.value.trim();
-        window.location.href = `${baseUrl}/search-result?query=${query}&page=1`;
+        window.location.href = searchResultUrl(query);
     }
   }
 }
@@ -441,8 +467,20 @@ function setItemWithExpiration(key, value, expirationInHours = 24) {
   localStorage.setItem(key, JSON.stringify(item));
 }
 
+// Stockage refusé (cookies bloqués : « The operation is insecure », WebView
+// sans localStorage) : la lecture rend null au lieu de lever, sinon le moteur
+// s'arrêtait au démarrage, sans résultats ni Entrée (Sentry 11C, 12P).
+function removeStored(key) {
+  try { localStorage.removeItem(key); } catch (e) { /* stockage refusé */ }
+}
+
 function getItemWithExpiration(key) {
-  const itemStr = localStorage.getItem(key);
+  let itemStr;
+  try {
+    itemStr = localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
   if (!itemStr) return null;
   let item;
   try {
@@ -451,16 +489,16 @@ function getItemWithExpiration(key) {
     // Self-heal: corrupted or pre-versioned raw-string value would otherwise
     // throw on init and break the entire finder for this user until they
     // manually clear localStorage in DevTools.
-    localStorage.removeItem(key);
+    removeStored(key);
     return null;
   }
   if (!item || typeof item.expiration !== 'number') {
-    localStorage.removeItem(key);
+    removeStored(key);
     return null;
   }
   const now = new Date();
   if (now.getTime() > item.expiration) {
-    localStorage.removeItem(key);
+    removeStored(key);
     return null;
   }
   return item.value;
