@@ -307,8 +307,15 @@ async function clickEvent(activeFilter) {
       searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
 
     // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
-    if (searchResultInner) searchResultInner.textContent =
-      `Pas de résultats pour "${query}", dans ce module.`;
+    if (searchResultInner) {
+      searchResultInner.textContent = "";
+      var msg = document.createElement("div");
+      msg.textContent = `Pas de résultats pour "${query}", dans ce module.`;
+      // Téléphone, champ principal : la liste n'a pas de marge intérieure, le texte
+      // s'aligne sur celui des lignes.
+      if (mainFieldFrame(searchBar)) msg.style.padding = "12px";
+      searchResultInner.appendChild(msg);
+    }
 
     return true;
   }
@@ -373,10 +380,13 @@ async function inputEvent(input, e) {
     searchResults.id = "search-results";
 
     const inputRect = input.getBoundingClientRect();
+    const mainFrame = mainFieldFrame(input);
     if (window.matchMedia("(min-width: 480px)").matches) {
       searchResults.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 16px; background: #fff;";
       searchResults.style.width = input.id === "search-bar-nav" ? `${inputRect.width * 2}px` : `${inputRect.width}px`;
       searchResults.style.left = `${inputRect.left}px`;
+    } else if (mainFrame) {
+      searchResults.style.cssText = MAIN_LIST_FRAME + " padding: 16px; background: #fff;";
     } else {
       searchResults.style.cssText = "width: calc(100% - 1rem); margin-left: .5rem; margin-right: .5rem; padding: 16px; background: #fff;";
     }
@@ -384,6 +394,7 @@ async function inputEvent(input, e) {
     searchResults.style.position = isMain ? "absolute" : "fixed";
     searchResults.style.top = isMain ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
     searchResults.style.zIndex = isMain ? "9999" : "10000";
+    if (mainFrame) placeUnderMainField(searchResults, mainFrame);
 
     // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
     searchResults.textContent =
@@ -797,6 +808,41 @@ async function search(query, filter, page) {
   }
 }
 
+// Téléphone (< 480 px), champ principal (#search-bar-main, accueil) : la liste prend la
+// largeur exacte du cadre du champ (son formulaire) et se pose 4 px dessous, encadrée
+// comme sur ordinateur. Avant, elle débordait le champ de 8 px de chaque côté et la page
+// se voyait sur ses bords. Le panneau de la loupe (#search-bar-nav) garde sa liste.
+var MAIN_LIST_FRAME = "border: 1px solid var(--base-200, rgba(12, 14, 22, 0.2)); border-radius: 4px; overflow: hidden; box-shadow: 0 6px 16px -4px rgba(35, 38, 59, 0.15);";
+
+function mainFieldFrame(input) {
+  if (!input || input.id !== "search-bar-main" || !input.form) return null;
+  if (window.matchMedia("(min-width: 480px)").matches) return null;
+  return input.form.getBoundingClientRect();
+}
+
+function placeUnderMainField(list, frame) {
+  list.style.width = `${frame.width}px`;
+  list.style.left = `${frame.left + window.pageXOffset}px`;
+  list.style.top = `${frame.bottom + window.pageYOffset + 4}px`;
+}
+
+// Fiche de deux modules (« Médecine générale & Rhumatologie ») : une icône par module,
+// côte à côte, au lieu de l'image où les deux pastilles se chevauchent. Libellé inconnu :
+// l'image de l'index.
+var MODULE_ICONS = {
+  "Médecine générale": "https://cdn.prod.website-files.com/604b9ac88b080efc7ce802bd/679772f5c754525604be565b_module-icon=moduleIcon-MG-16.svg",
+  "Rhumatologie": "https://cdn.prod.website-files.com/604b9ac88b080efc7ce802bd/679772f508f722fd9d8889f0_module-icon=moduleIcon-Rhumato-16.svg",
+  "Soins palliatifs": "https://cdn.prod.website-files.com/604b9ac88b080efc7ce802bd/679772f5dc51b632f1816365_module-icon=moduleIcon-SoinsPal-16.svg"
+};
+
+function moduleIconUrls(result) {
+  var parts = String(result.wordingLogo || "").split(" & ");
+  if (parts.length > 1 && parts.every(function (p) { return MODULE_ICONS[p]; })) {
+    return parts.map(function (p) { return MODULE_ICONS[p]; });
+  }
+  return [result.Img];
+}
+
 // Display the search results
 function displayResults(results, input, fromSuggest) {
   let resultList = document.getElementById("search-results");
@@ -819,6 +865,7 @@ function displayResults(results, input, fromSuggest) {
     resultList.id = "search-results";
 
     const inputRect = input.getBoundingClientRect();
+    const mainFrame = mainFieldFrame(input);
 
     if (window.matchMedia("(min-width: 480px)").matches) {
       resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
@@ -829,7 +876,7 @@ function displayResults(results, input, fromSuggest) {
         resultList.style.width = `${inputRect.width}px`;
         resultList.style.left = `${inputRect.left}px`;
       }
-    } else {
+    } else if (!mainFrame) {
       resultList.style.width = `calc(100% - 1rem)`;
       resultList.style.marginLeft = '.5rem';
       resultList.style.marginRight = '.5rem';
@@ -839,6 +886,10 @@ function displayResults(results, input, fromSuggest) {
       (input.id == "search-bar-main" || input.id == "search-bar-hp")
         ? `${inputRect.bottom + window.pageYOffset + 5}px`
         : `${inputRect.bottom + 5}px`;
+    if (mainFrame) {
+      resultList.style.cssText += MAIN_LIST_FRAME;
+      placeUnderMainField(resultList, mainFrame);
+    }
     resultList.style.zIndex = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "9999" : "10000";
     resultList.style.background = "white";
 
@@ -879,6 +930,10 @@ function displayResults(results, input, fromSuggest) {
           if (previous) previous.classList.remove('w--current');
           el.currentTarget.classList.add('w--current')
           lastActiveTab = el.currentTarget.getAttribute('data-w-tab');
+          // Téléphone : l'onglet choisi passe en tête de la rangée (order: -1 du Designer) ;
+          // la rangée revient au début pour qu'il reste à l'écran.
+          var menu = link.closest('.srt-menu');
+          if (menu) menu.scrollLeft = 0;
           clickEvent(activeFilter);
       })
     })
@@ -887,10 +942,14 @@ function displayResults(results, input, fromSuggest) {
     document.querySelector("body").appendChild(resultList);
   }
 
+  // Téléphone, champ principal : lignes de 48 px et texte à 16 px, comme dans le panneau
+  // de la loupe. Marges plutôt que gap (navigateurs anciens).
+  var mainRows = !!mainFieldFrame(input);
+
   if (fromSuggest && searchResultInner && typeof searchResultInner.appendChild === 'function') {
     const info = document.createElement("div");
     info.textContent = `0 résultats trouvés pour "${input.value}". Voici quelques suggestions :`;
-    info.style.padding = "4px 8px";
+    info.style.padding = mainRows ? "8px 12px 4px" : "4px 8px";
     info.style.fontSize = "13px";
     info.style.color = "#555";
     info.style.marginBottom = "4px";
@@ -912,30 +971,39 @@ function displayResults(results, input, fromSuggest) {
     }
     const resultElement = document.createElement("a");
 
-    const img = document.createElement("img");
-    img.style.minWidth = "20px";
-    img.style.height = "20px";
-
     resultElement.classList.add("search-result");
     const div =  document.createElement('div');
 
-    img.setAttribute("src", result.Img);
     div.style.cssText = "display: flex; align-items: center; padding: 4px; color: #0c0e16; font-size: 14px;border-radius:4px;white-space: nowrap;";
     div.style.backgroundColor = "transparent";
 
-    // Icône seule (téléphone, barre de navigation) : son libellé devient le texte
-    // alternatif ; à côté du libellé écrit, elle est décorative.
-    img.alt = result.wordingLogo || "";
-    if (window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav"){
+    var withLabel = window.matchMedia("(min-width: 480px)").matches && input.id != "search-bar-nav";
+    if (withLabel){
       div.appendChild(document.createTextNode(result.wordingLogo));
-      img.alt = "";
-      img.style.marginLeft = "5px";
       div.style.padding = "2px 8px";
     }
-    div.appendChild(img);
+    moduleIconUrls(result).forEach(function (src, i) {
+      const img = document.createElement("img");
+      img.style.minWidth = "20px";
+      img.style.height = "20px";
+      img.setAttribute("src", src);
+      // Icône seule (téléphone, barre de navigation) : la première porte le libellé en
+      // texte alternatif ; à côté du libellé écrit, les icônes sont décoratives.
+      img.alt = (!withLabel && i === 0) ? (result.wordingLogo || "") : "";
+      if (i > 0) img.style.marginLeft = "4px";
+      else if (withLabel) img.style.marginLeft = "5px";
+      div.appendChild(img);
+    });
 
     resultElement.style.cssText =
       "text-decoration: none; color: #0c0e16; padding: 8px 8px; display: flex; align-items: center; justify-content:space-between; font-size: 14px; border-radius: 4px;";
+    if (mainRows) {
+      resultElement.style.padding = "12px";
+      resultElement.style.fontSize = "1rem";
+      resultElement.style.borderRadius = "0";
+      div.style.padding = "0";
+      div.style.marginLeft = "12px";
+    }
 
     resultElement.addEventListener("click", function(event) {
       event.preventDefault();
