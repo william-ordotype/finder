@@ -128,15 +128,55 @@ function clearAllPagination() {
   });
 }
 
+// Titre au-dessus de la liste (audit design #63) : « 7 résultats pour « angine » ».
+// Le nombre est le total Elastic de l'onglet actif (le filtre de module est dans la
+// requête), toutes pages confondues. Un seul titre, déplacé dans l'onglet affiché ;
+// retiré sans requête et sans résultat (le message existant le dit déjà).
+// Classes du site (heading-h2-docs : 20 px, 18 px sous 768 px ; margin-bottom
+// margin-xsmall : 8 px) et jeton de couleur --base-900. Pas la classe
+// text-color-base-900 : sous 480 px elle impose aussi font-size 12px dans Webflow
+// (titre plus petit que les résultats).
+// La requête passe par textContent, jamais par innerHTML. Le h2#search-title prévu
+// dans Webflow reste vide : il est masqué, et en double (même id) dans la page.
+var resultsTitle = null;
+function setResultsTitle(resultList, total, shownQuery) {
+  if (!total) {
+    if (resultsTitle && resultsTitle.parentNode) resultsTitle.parentNode.removeChild(resultsTitle);
+    return;
+  }
+  if (!resultsTitle) {
+    resultsTitle = document.createElement('div');
+    resultsTitle.className = 'margin-bottom margin-xsmall';
+    // 16 px de chaque côté : le texte des résultats (padding des liens, plus bas) et la
+    // gouttière. Pas les classes padding-* : dans ce projet Webflow, la combinaison
+    // padding-small + padding-horizontal est en display:none (c'est elle qui masque le
+    // h2#search-title d'origine) et padding-left + padding-small a sa propre variante.
+    resultsTitle.style.padding = '0 16px';
+    var heading = document.createElement('h1');
+    heading.className = 'heading-h2-docs';
+    heading.style.color = 'var(--base-900)';
+    heading.setAttribute('aria-live', 'polite');
+    // Requête longue sans espace : retour à la ligne au lieu d'élargir la page (390 px).
+    heading.style.overflowWrap = 'break-word';
+    resultsTitle.appendChild(heading);
+  }
+  if (resultsTitle.nextSibling !== resultList) resultList.parentNode.insertBefore(resultsTitle, resultList);
+  // Espaces insécables : le nombre reste avec son mot, les guillemets avec la requête.
+  resultsTitle.firstChild.textContent = total.toLocaleString('fr-FR') + '\u00A0' +
+    (total > 1 ? 'résultats' : 'résultat') + ' pour «\u00A0' + shownQuery + '\u00A0»';
+}
+
 async function displayAll(){
     var seq = ++displaySeq;
     let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
     if (!resultList) return;
     if (!query) {
       resultList.innerHTML = '';
+      setResultsTitle(resultList, 0);
       const msg = document.createElement("div");
       msg.textContent = "Saisissez un terme dans la barre de recherche.";
-      msg.style.cssText = "padding: 8px 0; font-size: 16px; color: #555;";
+      // 16 px : aligné sur le texte des résultats (et sur le titre), plus collé au bord.
+      msg.style.cssText = "padding: 8px 16px; font-size: 16px; color: #555;";
       resultList.appendChild(msg);
       clearAllPagination();
       return;
@@ -165,12 +205,14 @@ async function displayAll(){
 
     resultList.innerHTML = '';
     currentFocus = -1;
+    // Suggestions (fromSuggest) : total vaut 0, le message « 0 résultats trouvés » reste seul.
+    setResultsTitle(resultList, results.length && !fromSuggest ? total : 0, shownQuery);
 
     // Aucun résultat et aucune suggestion
     if (results.length === 0) {
       const msg = document.createElement("div");
-      msg.textContent = `Pas de résultats pour "${query}". Vérifiez l'orthographe de votre recherche.`;
-      msg.style.padding = "8px 0";
+      msg.textContent = `Pas de résultats pour «\u00A0${query}\u00A0». Vérifiez l'orthographe de votre recherche.`;
+      msg.style.padding = "8px 16px";
       msg.style.fontSize = "16px";
       msg.style.color = "#555";
       resultList.appendChild(msg);
@@ -181,8 +223,8 @@ async function displayAll(){
     // Cas "fallback sur les suggestions"
     if (fromSuggest) {
       const info = document.createElement("div");
-      info.textContent = `0 résultats trouvés pour "${query}". Voici quelques suggestions :`;
-      info.style.padding = "4px 0 8px";
+      info.textContent = `0 résultats trouvés pour «\u00A0${query}\u00A0». Voici quelques suggestions\u00A0:`;
+      info.style.padding = "4px 16px 8px";
       info.style.fontSize = "14px";
       info.style.color = "#555";
       resultList.appendChild(info);
