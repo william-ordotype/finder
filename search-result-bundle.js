@@ -7,8 +7,12 @@
 const ES_BASE_URL = "https://ordotype-finder.es.eu-west-3.aws.elastic-cloud.com/";
 // Index name MUST start with `ordotype-index-20` (date): the public search key
 // (SEARCH_HEADERS) can read only `ordotype-index-20*`, any other name gets a 403.
-const ES_INDEX_STAGING = "ordotype-index-2026-06-02-c";
-const ES_INDEX_PRODUCTION = "ordotype-index-2026-06-02-c";
+// Alias Elastic (et non un index daté) : changer d'index = un appel _aliases atomique, sans
+// toucher au JS ni republier le pied de page. Son nom commence lui aussi par
+// `ordotype-index-20`, sinon la clé publique est refusée (403). Il pointe sur
+// ordotype-index-2026-10-22 (copie du live + champs « début de mot » de buildSearchBody).
+const ES_INDEX_STAGING = "ordotype-index-2026-live";
+const ES_INDEX_PRODUCTION = "ordotype-index-2026-live";
 
 // Choose index by environment: staging (webflow) vs production
 const IS_STAGING = window.location.hostname.includes("ordotype.webflow.io");
@@ -96,6 +100,8 @@ function normalizeForBlocklist(q) {
 // model a rarer same-prefix fiche can edge ahead (e.g. "Hype" -> Hyperthyro\u00efdie instead
 // of the far more common Hypertension); pin the canonical fiche (by slug) to #1 for
 // these exact normalized queries. No-op when that fiche is already #1.
+// Une valeur peut être une liste : la première fiche présente dans les résultats passe en
+// tête (ex. la fiche d'orientation sans filtre, sa jumelle sous le filtre médecine générale).
 var PINNED_FIRST = {
   "h": "hta",      // Hypertension art\u00e9rielle
   "hy": "hta",
@@ -111,6 +117,63 @@ var PINNED_FIRST = {
   "rhiz": "arthrose-digitale-orientation",  // rhizarthrose (was Pseudopolyarthrite rhizomelique)
   "mater": "prescription-de-materiel-medical",  // materiel (was Grossesse)
   "suivi": "grossesse-a-bas-risque-examens-systematiques",  // suivi de grossesse >> bariatrique
+  // 22/10, revue de la requête « début de mot » (buildSearchBody) : préfixes où elle changeait
+  // la 1re fiche à tort, d'après ce que les médecins tapent ensuite, leurs clics et une relecture
+  // médicale. Presque tous remettent la réponse d'avant ; les autres suivent la relecture
+  // (stérilet, abcès superficiel, constipation, leucorrhées).
+  "resp": "dyspnee-sans-signe-dorientation", "respi": "dyspnee-sans-signe-dorientation", "respir": "dyspnee-sans-signe-dorientation", "respira": "dyspnee-sans-signe-dorientation", "respirat": "dyspnee-sans-signe-dorientation", "respiratoi": "dyspnee-sans-signe-dorientation",
+  "respiratoir": "dyspnee-sans-signe-dorientation", "respiratoire": "dyspnee-sans-signe-dorientation",
+  "anxiet": "troubles-anxieux", "anxiete": "troubles-anxieux", "cr": "troubles-anxieux", "trou": "troubles-anxieux", "troub": "troubles-anxieux", "troubl": "troubles-anxieux",
+  "tens": "hta", "tensi": "hta", "tensio": "hta", "tension": "hta", "tensionn": "hta",
+  "chole\"": "dyslipidemie", "st": "dyslipidemie", "stat": "dyslipidemie", "stati": "dyslipidemie",
+  "somm": "troubles-sommeil", "somme": "troubles-sommeil", "sommei": "troubles-sommeil", "sommeil": "troubles-sommeil",
+  "ster": "contraception-par-dispositif-intra-uterin-diu-gynecologie", "steri": "contraception-par-dispositif-intra-uterin-diu-gynecologie", "steril": "contraception-par-dispositif-intra-uterin-diu-gynecologie",
+  "epaue": "douleur-de-l-epaule", "epauk": "douleur-de-l-epaule", "tendi": "douleur-de-l-epaule",
+  "lombag": "lombalgies-orientation", "lombairer": "lombalgies-orientation", "travail": "lombalgies-orientation",
+  "meta": "metatarsalgies-orientation-diagnostique", "metat": "metatarsalgies-orientation-diagnostique", "metata": "metatarsalgies-orientation-diagnostique",
+  "vertg": "vertiges", "vertgi": "vertiges", "vertiges": "vertiges",
+  "langue": "candidose", "mucose": "candidose",
+  "pillu": "contraception-par-pilule-oestroprogestative-gynecologie", "pillul": "contraception-par-pilule-oestroprogestative-gynecologie",
+  "eczeam": "dermatite-atopique", "exzema": "dermatite-atopique",
+  "dermi": "dermatite-seborrheique", "dermit": "dermatite-seborrheique",
+  "infectionurinaire femme": "infections-urinaires", "iu masculin": "infections-urinaires",
+  "psoa": "psoriasis", "psora": "psoriasis",
+  "attelle": "syndrome-du-canal-carpien", "ca": "syndrome-du-canal-carpien",
+  "q": "tenosynovite-de-de-quervain", "qu": "tenosynovite-de-de-quervain",
+  "abces": "abces-superficiel",
+  "acco": "acouphenes",
+  "ad": "adenopathie",
+  "angie": "angine-2",
+  "bili": "anomalie-du-bilan-hepatique",
+  "surrenale": "asthenie",
+  "band": "bandelette-urinaire",
+  "collyre": "conjonctivite",
+  "transit": "constipation",
+  "nou": "dermatite-atopique-du-nourrisson",
+  "dysmenorrhee": "dysmenorrhee",
+  "ten": "epicondylite",
+  "dema": "gale",
+  "suiv": "grossesse-a-bas-risque-examens-systematiques",
+  "hypery": "hyperthyroidie",
+  "thyr": "hypothyroidie",
+  "doxy": "infections-sexuellement-transmissibles-ist-mst",
+  "vagins": "leucorrhees",
+  "sa": "lithiases-salivaires",
+  "lombai": "lombalgies",
+  "fond": "migraines",
+  "mo": "mononucleose-infectieuse",
+  "ungueal": "onychomycose",
+  "perforation": "otite-moyenne-aigue-de-lenfant",
+  "sere": "otite-seromuqueuse",
+  "gi": "primo-infection-herpetique",
+  "rose": "pytiriasis-rose-de-gilbert",
+  "pieds": "soins-pied-diabetique",
+  "cou": "suites-de-couches",
+  "hemostase": "syndromes-hemorragiques",
+  "cra": "urgences-documents-utiles",
+  "dosage": "vitamine-d",
+  "c": ["conjonctivite", "syndrome-du-canal-carpien"],
+  "osteoporose": ["osteoporose-orientation", "osteoporose"],
 };
 
 // Handle click outside of search results
@@ -600,6 +663,83 @@ function getItemWithExpiration(key) {
   return item.value;
 }
 
+// ---- corps de la requête (miroir : webflow-scripts/webflow/finder_v2/v2_query.py, profil H3keep+H7) ----
+// Fonction pure : le banc de mesure l'exécute dans node et vérifie qu'elle envoie la requête mesurée.
+//
+// Par rapport à la requête du 07/04 (mesuré le 22/10 contre le live : plus de recherches à la
+// bonne fiche, aucune régression sur les requêtes fréquentes) :
+// - « début de mot » (H3keep) : chaque mot tapé doit commencer un mot de Name / Alias / Boost
+//   (sous-champs .ledge / .sedge, n-grammes de début de mot). Ajouté AVANT la clause phrase de
+//   chaque champ, qui reste : l'ordre des mots tapés n'a plus à être celui de la fiche, et le
+//   préfixe n'est plus limité aux 20 premiers termes du dictionnaire (max_expansions).
+// - Importance (H7) : (1,5 x Importance)^e au lieu de sqrt, avec e = 0,5 (= sqrt, inchangé)
+//   jusqu'à 3 caractères et 0,25 à partir de 4. Sur les premières lettres le texte ne départage
+//   pas, l'Importance garde son poids ; ensuite elle n'écrase plus une fiche mieux ciblée.
+// Inchangé : flou 0 sur Boost et le corps (bruit « genou » -> Ménopause), prefix_length 1 sur le
+// flou de Name / Alias (« otalgie » -> Gonalgie), filtre Filtres, suggestions sur le slug, tri.
+function buildSearchBody(query, filter, page) {
+  var nameFuzziness = query.length >= 5 ? 2 : query.length >= 4 ? "AUTO" : 0;
+
+  function prefixClauses(field, edgeField, boost) {
+    var edge = {}, phrase = {};
+    edge[edgeField] = { query: query, operator: "AND", boost: boost };
+    phrase[field] = { query: query, slop: 0, max_expansions: 20, boost: boost };
+    return [{ match: edge }, { match_phrase_prefix: phrase }];
+  }
+
+  var should = []
+    .concat(prefixClauses("Name", "Name.ledge", 4))
+    .concat([{ match: { Name: { query: query, operator: "AND", fuzziness: nameFuzziness, prefix_length: 1, boost: 3 } } }])
+    .concat(prefixClauses("Alias", "Alias.ledge", 1.5))
+    .concat([{ match: { Alias: { query: query, operator: "OR", fuzziness: nameFuzziness, prefix_length: 1 } } }])
+    .concat(prefixClauses("Boost", "Boost.sedge", 5))
+    .concat([
+      { match: { Boost: { query: query, operator: "OR", fuzziness: 0, boost: 4 } } },
+      { match: { "Ordonnances médicales": { query: query, operator: "AND", fuzziness: 0, boost: 0.5 } } },
+      { match: { "Conseils patient": { query: query, operator: "AND", fuzziness: 0, boost: 0.5 } } },
+      { match: { "Informations cliniques - HTML": { query: query, operator: "AND", fuzziness: 0, boost: 0.3 } } },
+    ]);
+
+  return {
+    query: {
+      function_score: {
+        query: {
+          bool: {
+            must: [{ bool: { should: should, minimum_should_match: 1 } }],
+            filter: filter ? [{ wildcard: { Filtres: `*${filter}*` } }] : [],
+            must_not: !filter
+              ? [{ bool: { must: [{ wildcard: { Filtres: `*only*` } }, { bool: { must_not: [{ term: { Filtres: `all-only` } }] } }] } }]
+              : [],
+          },
+        },
+        boost_mode: "multiply",
+        script_score: {
+          script: {
+            source: "double i = doc[params.f].size() == 0 ? 1 : doc[params.f].value; return Math.pow(1.5 * i, params.e);",
+            params: { f: "Importance", e: query.trim().length <= 3 ? 0.5 : 0.25 },
+          },
+        },
+      },
+    },
+    suggest: {
+      med_suggest: {
+        prefix: query,
+        completion: { field: "Slug", fuzzy: { fuzziness: 2 }, size: 10 },
+      },
+    },
+    _source: ["Name", "Slug", "Logo_for_finder_URL", "Wording_Logo", "Filtres"],
+    size: page ? RESULTS_PAGE_SIZE : 10,
+    from: page ? (page - 1) * RESULTS_PAGE_SIZE : 0,
+    sort: [
+      { _score: { order: "desc" } },
+      { Alias: { order: "desc", missing: "_last" } },
+      { "Ordonnances médicales": { order: "desc", missing: "_last" } },
+      { "Conseils patient": { order: "desc", missing: "_last" } },
+    ],
+  };
+}
+// ---- fin du corps de la requête ----
+
 async function search(query, filter, page) {
   try {
     // Block queries with no matching fiche (return empty instead of wrong fuzzy matches)
@@ -607,190 +747,10 @@ async function search(query, filter, page) {
       return { results: [], fromSuggest: false };
     }
 
-    const nameFuzziness =  query.length >= 5 ? 2 : query.length >= 4 ? "AUTO" : 0;
-
-    // Fuzzy-noise fix: exact-only matching (fuzziness 0) on the Boost field (short,
-    // curated keywords) and the long body fields. Fuzzy matching there surfaced
-    // junk cross-word collisions on high-Importance fiches — e.g. "genou" fuzzy-hit
-    // Boost:"meno" (Ménopause) and HTML:"tenu" (Angine). Name/Alias keep nameFuzziness
-    // for typo tolerance. Gated on IS_STAGING for soak; ungated on promotion.
-    const bodyFuzziness = 0;
-
-    // Importance modifier: "sqrt" compresses the Importance multiplier so a strong Name
-    // match isn't overpowered by an unrelated high-Importance fiche. Fixes ~40 of the
-    // top-500 queries (cancer, insuffisance, abcès, vertiges, throm, rosac, ostéo, ...).
-    // Gated on IS_STAGING for soak; ungated on promotion.
-    const importanceModifier = "sqrt";
-
-    // Cross-stem fuzzy-noise fix: require the first letter to match before fuzzy edits
-    // apply on Name/Alias. Kills different-stem / shared-suffix false matches — e.g.
-    // "otalgie" (ear pain) fuzzy-hitting "Gonalgie" (knee, edit-distance 2) and ranking
-    // it #2 via its Importance. Validated: 0 regressions on top-200 + regression + targeted
-    // sets (poids stays correct). First-letter typos are rare in prefix search; edits 2..N
-    // are still tolerated. Boost/body fields already use fuzziness 0, so prefix_length is
-    // only meaningful on the Name/Alias fuzzy clauses below.
-    const namePrefixLength = 1;
-
     const response = await fetchJson(`${ES_URL}/_search`, {
       method: "POST",
       headers: SEARCH_HEADERS,
-      body: JSON.stringify({
-        query: {
-          function_score: {
-            query: {
-              bool: {
-                must: [
-                  {
-                    bool: {
-                      should: [
-                        {
-                          match_phrase_prefix: {
-                            Name: {
-                              query: query,
-                              slop: 0,
-                              max_expansions: 20,
-                              boost: 4,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            Name: {
-                              query: query,
-                              operator: "AND",
-                              fuzziness: nameFuzziness,
-                              prefix_length: namePrefixLength,
-                              boost: 3,
-                            },
-                          },
-                        },
-                        {
-                          match_phrase_prefix: {
-                            Alias: {
-                              query: query,
-                              slop: 0,
-                              max_expansions: 20,
-                              boost: 1.5,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            Alias: {
-                              query: query,
-                              operator: "OR",
-                              fuzziness: nameFuzziness,
-                              prefix_length: namePrefixLength,
-                            },
-                          },
-                        },
-                        {
-                          match_phrase_prefix: {
-                            Boost: {
-                              query: query,
-                              slop: 0,
-                              max_expansions: 20,
-                              boost: 5,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            Boost: {
-                              query: query,
-                              operator: "OR",
-                              fuzziness: bodyFuzziness,
-                              boost: 4,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            "Ordonnances médicales": {
-                              query: query,
-                              operator: "AND",
-                              fuzziness: bodyFuzziness,
-                              boost: 0.5,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            "Conseils patient": {
-                              query: query,
-                              operator: "AND",
-                              fuzziness: bodyFuzziness,
-                              boost: 0.5,
-                            },
-                          },
-                        },
-                        {
-                          match: {
-                            "Informations cliniques - HTML": {
-                              query: query,
-                              operator: "AND",
-                              fuzziness: bodyFuzziness,
-                              boost: 0.3,
-                            },
-                          },
-                        },
-                      ],
-                      minimum_should_match: 1,
-                    },
-                  },
-                ],
-
-                filter: filter
-                  ? [{ wildcard: { Filtres: `*${filter}*` } }]
-                  : [],
-                must_not: !filter
-                  ? [
-                      {
-                        bool: {
-                          must: [
-                            { wildcard: { Filtres: `*only*` } },
-                            {
-                              bool: {
-                                must_not: [{ term: { Filtres: `all-only` } }],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ]
-                  : [],
-              },
-            },
-            field_value_factor: {
-              field: "Importance",
-              factor: 1.5,
-              modifier: importanceModifier,
-              missing: 1,
-            },
-          },
-        },
-        suggest: {
-          med_suggest: {
-            prefix: query,
-            completion: {
-              field: "Slug",
-              fuzzy: {
-                fuzziness: 2,
-              },
-              size: 10,
-            },
-          },
-        },
-        _source: ["Name", "Slug", "Logo_for_finder_URL", "Wording_Logo", "Filtres"],
-        size: page ? RESULTS_PAGE_SIZE : 10,
-        from: page ? (page - 1) * RESULTS_PAGE_SIZE : 0,
-        sort: [
-          { _score: { order: "desc" } },
-          { Alias: { order: "desc", missing: "_last" } },
-          { "Ordonnances médicales": { order: "desc", missing: "_last" } },
-          { "Conseils patient": { order: "desc", missing: "_last" } },
-        ],
-      }),
+      body: JSON.stringify(buildSearchBody(query, filter, page)),
     });
 
     const hits = response.data.hits.hits;
@@ -817,10 +777,15 @@ async function search(query, filter, page) {
     });
 
     // Pin the canonical fiche to #1 for known ambiguous short prefixes (see PINNED_FIRST).
-    const pinSlug = PINNED_FIRST[normalizeForBlocklist(query)];
-    if (pinSlug) {
-      const pinIdx = results.findIndex((r) => r.Slug === pinSlug);
-      if (pinIdx > 0) results.unshift(results.splice(pinIdx, 1)[0]);
+    // Liste : la première fiche présente gagne (les autres ne sont pas regardées).
+    const pinned = PINNED_FIRST[normalizeForBlocklist(query)];
+    const pinSlugs = Array.isArray(pinned) ? pinned : (pinned ? [pinned] : []);
+    for (var p = 0; p < pinSlugs.length; p++) {
+      const pinIdx = results.findIndex((r) => r.Slug === pinSlugs[p]);
+      if (pinIdx >= 0) {
+        if (pinIdx > 0) results.unshift(results.splice(pinIdx, 1)[0]);
+        break;
+      }
     }
 
     return { results, fromSuggest: usingSuggestions, total };
