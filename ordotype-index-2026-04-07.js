@@ -65,11 +65,21 @@ var BLOCKED_QUERIES = new Set([
   // prefixes of "pied mycose", for which Dermatophytose ungueale is a good answer.
   "pied mai", "pied-mai",
   // "hypon" (10.3k searches, 9.3% no-click) fuzzy-matched Hyperthyroidie (hypon~hyper).
-  // It is the last leak in the hyponatremie chain: "hypona".."hyponatremi" already match
-  // nothing and "hyponatremie" is blocked above. There is no hyponatremie fiche (only
-  // Hypernatremie). Remove both once one is created.
+  // The hyponatremie fiche exists but is kept out of the Finder (owner's decision,
+  // 2026-10-20): remove this whole chain the day it is added.
   "hypon",
-  "anti"
+  "anti",
+  // 2026-10-22: prefixes of the blocked terms above that still showed an unrelated fiche
+  // (fuzzy hit or slug suggestion) although 85-99% of the people typing them go on to the
+  // blocked word. Same rule as "hypon": block the prefix, not only the word.
+  "hypona", "hyponat", "hyponatr",   // hyponatremie (showed Hypocalcemie / Hypokaliemie)
+  "lupu",                            // lupus (Lucite, Leucorrhees)
+  "tube", "tuber",                   // tuberculose (Thrombopenie, NCB)
+  "cush",                            // cushing (Cassure staturo-ponderale)
+  "peric", "perica",                 // pericardite (Douleurs de fesse)
+  "hort", "horto",                   // horton (Hypothyroidie)
+  "souf", "souff",                   // souffle (Implant contraceptif)
+  "hyperac", "hyperact", "hyperactivite"  // hyperactivite = TDAH, blocked (Hyperthyroidie, Enuresie)
 ]);
 
 function normalizeForBlocklist(q) {
@@ -83,7 +93,19 @@ function normalizeForBlocklist(q) {
 // these exact normalized queries. No-op when that fiche is already #1.
 var PINNED_FIRST = {
   "h": "hta",      // Hypertension art\u00e9rielle
+  "hy": "hta",
+  "hyp": "hta",
   "hype": "hta",
+  // 2026-10-22 intent audit: prefixes where the fiche most users go on to sits at #2
+  // behind a higher-Importance fiche that Alias/Boost could not overtake.
+  "coli": "colique-nephretique",          // 91% go on to "colique" (was Diarrhee aigue)
+  "pruri": "prurit",                      // 97% prurit (was Urticaire chronique)
+  "epis": "epistaxis",                    // 78% epistaxis (was Episode depressif)
+  "gastrit": "gastrite",                  // was Ulcere gastro-duodenal
+  "appe": "suspicion-dappendicite",       // appendicite (was Fievre sans point d'appel)
+  "rhiz": "arthrose-digitale-orientation",  // rhizarthrose (was Pseudopolyarthrite rhizomelique)
+  "mater": "prescription-de-materiel-medical",  // materiel (was Grossesse)
+  "suivi": "grossesse-a-bas-risque-examens-systematiques",  // suivi de grossesse >> bariatrique
 };
 
 // Handle click outside of search results
