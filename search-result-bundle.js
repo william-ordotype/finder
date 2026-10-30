@@ -172,6 +172,18 @@ var PINNED_FIRST = {
   "hemostase": "syndromes-hemorragiques",
   "cra": "urgences-documents-utiles",
   "dosage": "vitamine-d",
+  // 30/10, première mesure après la mise en ligne du 23/10 : préfixes où la 1re fiche avait
+  // changé alors que les médecins cliquaient une autre fiche de la liste (clics par position).
+  "thyroi": "hypothyroidie", "thyroid": "hypothyroidie",
+  "hp": "h-pylori", "hpv": "depistage-cancer-du-col-de-luterus",
+  "stomatite": "candidose",
+  "fol": "carence-en-vitamine-b9",
+  "tend": "douleur-de-l-epaule", "tendin": "douleur-de-l-epaule",
+  "tendino": "tendinopathie-de-la-coiffe-des-rotateurs-orientation",
+  // La fiche prostatite n'est pas encore dans le Finder : à revoir le jour où elle y entre.
+  "prostat": "infections-urinaires", "prostati": "infections-urinaires",
+  "ferr": "hyperferritinemie", "ferri": "hyperferritinemie", "ferriti": "hyperferritinemie", "ferritine": "hyperferritinemie",
+  "steatose": "anomalie-du-bilan-hepatique",
   "c": ["conjonctivite", "syndrome-du-canal-carpien"],
   "osteoporose": ["osteoporose-orientation", "osteoporose"],
 };
