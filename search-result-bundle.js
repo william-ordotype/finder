@@ -95,6 +95,34 @@ function normalizeForBlocklist(q) {
   return q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// 30/10 : d\u00e9buts de phrase bloqu\u00e9s, pour les maladies sans fiche dans le Finder. D\u00e8s qu'une
+// requ\u00eate normalis\u00e9e commence par l'un d'eux, rien n'est affich\u00e9 : chaque pr\u00e9fixe tap\u00e9 et chaque
+// faute qui suit montraient une fiche fausse (\u00ab maladie de horton \u00bb : Dupuytren, \u00ab syndrome de
+// cushing \u00bb : De Quervain, \u00ab syndrome occlusif \u00bb : syndrome rotulien...). Les mots seuls restent
+// dans BLOCKED_QUERIES. Occlusion et confusion : fiches en attente de validation, retirer ces
+// entr\u00e9es le jour o\u00f9 elles entrent dans le Finder. Pas \u00ab syndrome de stress \u00bb seul : le syndrome
+// de stress tibial m\u00e9dial a sa fiche (p\u00e9riostite tibiale).
+var BLOCKED_PREFIXES = [
+  "maladie de hor", "maladie d'hor", "maladie d\u2019hor",                  // Horton
+  "syndrome de cush", "syndrome cush", "maladie de cush",                  // Cushing
+  "syndrome pied main", "syndrome pieds main", "syndrome du pied main",    // pied-main-bouche
+  "syndrome pied-main", "syndrome pieds-mains",
+  "syndrome occlu",                                                         // occlusion (fiche en attente)
+  "syndrome confu",                                                         // confusion (fiche en attente)
+  "syndrome infl",                                                          // syndrome inflammatoire
+  "syndrome de stress post", "syndrome stress post", "etat de stress post", // stress post-traumatique
+  "syndrome post tr", "syndrome post-tr"
+];
+
+function isBlockedQuery(q) {
+  var key = normalizeForBlocklist(q);
+  if (BLOCKED_QUERIES.has(key)) return true;
+  for (var i = 0; i < BLOCKED_PREFIXES.length; i++) {
+    if (key.indexOf(BLOCKED_PREFIXES[i]) === 0) return true;
+  }
+  return false;
+}
+
 // Pinned #1 for a few ultra-short, ambiguous high-traffic prefixes where the most
 // common condition is the near-certain intent. Under the compressed (sqrt) Importance
 // model a rarer same-prefix fiche can edge ahead (e.g. "Hype" -> Hyperthyro\u00efdie instead
@@ -457,7 +485,7 @@ async function inputEvent(input, e) {
   }
 
   // No results path
-  var isBlocked = BLOCKED_QUERIES.has(normalizeForBlocklist(query));
+  var isBlocked = isBlockedQuery(query);
   if (results.length === 0) {
     const existing = document.getElementById("search-results");
 
@@ -755,7 +783,7 @@ function buildSearchBody(query, filter, page) {
 async function search(query, filter, page) {
   try {
     // Block queries with no matching fiche (return empty instead of wrong fuzzy matches)
-    if (BLOCKED_QUERIES.has(normalizeForBlocklist(query))) {
+    if (isBlockedQuery(query)) {
       return { results: [], fromSuggest: false };
     }
 
