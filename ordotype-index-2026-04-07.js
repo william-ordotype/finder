@@ -209,6 +209,17 @@ var PINNED_FIRST = {
   "steatose": "anomalie-du-bilan-hepatique",
   "c": ["conjonctivite", "syndrome-du-canal-carpien"],
   "osteoporose": ["osteoporose-orientation", "osteoporose"],
+  // 16/11, cycle « Mise à jour Elastic Search » : la fiche que cliquent les médecins qui tapent
+  // exactement ce mot était 2e ou plus bas (clics GA4 du 13/10 au 15/11, cliquée / 1re d'avant).
+  "balanite": "balano-posthite",          // 429 / 34 (Candidose)
+  "insu": "insuffisance-renale",          // 128 / 5 (Diabète de type 2)
+  "vers": "oxyurose",                     // 45 / 7 (Pityriasis versicolor)
+  "sibo": "diarrhee-chronique",           // 20 / 1 (Suivi après chirurgie bariatrique)
+  "crise d'asthme": "asthme",             // 14 clics ; 1re = Pathologie hémorroïdaire (« crise »)
+  "hyperl": "hyperlymphocytose",          // 23 / 4 (Dyslipidémie)
+  "hyperthr": "hyperthyroidie",           // 23 / 0 (HTA et grossesse)
+  "souk": "syndrome-des-ovaires-polykystiques",  // 30 / 1, correction automatique de « sopk »
+  "abce": "abces-superficiel",            // 138 / 83 (Abcès dentaire), comme « abces »
 };
 
 // Handle click outside of search results
