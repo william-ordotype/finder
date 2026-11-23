@@ -313,7 +313,104 @@ const SEARCH_HEADERS = {
     "ApiKey S1p5d0c2RUJ6bmczS0FNZFFuZE06SGY5bVZsRGdTby13QWR5Q2VINzVzZw==",
 };
 
-var MAX_CARRIED = 25;            // cap stored batch (defensive: writes failing across many navs)
+// ---------- Secours Algolia (Elastic indisponible) ----------
+// Si Elastic ne répond pas (réseau, délai dépassé, 5xx, 401/403/429), la même
+// recherche part chez Algolia, sans rien changer à l'affichage : index
+// `pathologies`, mêmes fiches et mêmes champs que l'index Elastic (Name, Slug,
+// Img, Wording_Logo, Filtres), réindexé chaque mois par le backup
+// (backup-mensuel/secours/finder_algolia.py). Moins fin qu'Elastic : il cherche
+// dans le nom, l'alias et Boost, pas dans le texte des fiches.
+// Clé publique par nature (servie à chaque navigateur) : recherche seule, index
+// `pathologies` seul, 20 résultats au plus par requête, plafond par adresse IP.
+var ALGOLIA_APP_ID = "TDNYD0DXDQ";
+var ALGOLIA_SEARCH_KEY = "ff198ac78e8cf1ed80719223ea3213b2";
+var ALGOLIA_QUERY_URL = "https://" + ALGOLIA_APP_ID + "-dsn.algolia.net/1/indexes/pathologies/query" +
+  "?x-algolia-application-id=" + ALGOLIA_APP_ID + "&x-algolia-api-key=" + ALGOLIA_SEARCH_KEY;
+var ES_DELAI_MS = 4000;                 // au-delà, la recherche part chez Algolia
+var ALGOLIA_DELAI_MS = 5000;
+var ES_ECHECS_AVANT_PANNE = 2;          // échecs d'affilée avant de sauter Elastic…
+var ES_PANNE_MS = 10 * 60 * 1000;       // …pendant 10 min (toute la session de l'onglet)
+var ES_PANNE_KEY = "ot_es_panne_jusqua";
+var esEchecs = 0;
+var esPanneJusqua = 0;
+try { esPanneJusqua = Number(sessionStorage.getItem(ES_PANNE_KEY)) || 0; } catch (e) { /* stockage refusé */ }
+var secoursSignale = false;
+
+// fetch qui abandonne après `ms` (AbortController s'il existe, sinon simple course).
+function fetchAvecDelai(url, options, ms) {
+  var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+  var opts = Object.assign({}, options, ctrl ? { signal: ctrl.signal } : {});
+  return new Promise(function (resolve, reject) {
+    var t = setTimeout(function () {
+      if (ctrl) ctrl.abort();
+      var e = new Error("délai dépassé");
+      e.delai = true;
+      reject(e);
+    }, ms);
+    fetch(url, opts).then(
+      function (res) { clearTimeout(t); resolve(res); },
+      function (err) { clearTimeout(t); reject(err); }
+    );
+  });
+}
+
+// Une erreur qui dit « Elastic est en panne », et non « cette requête-là est refusée ».
+function estPanneElastic(err) {
+  var s = err && err.status;
+  return !s || s >= 500 || s === 401 || s === 403 || s === 429;
+}
+
+function noterEchecElastic() {
+  esEchecs++;
+  if (esEchecs < ES_ECHECS_AVANT_PANNE) return;
+  esPanneJusqua = Date.now() + ES_PANNE_MS;
+  try { sessionStorage.setItem(ES_PANNE_KEY, String(esPanneJusqua)); } catch (e) { /* stockage refusé */ }
+}
+
+// Une fois par onglet, et seulement quand Algolia a vraiment servi la recherche
+// (un visiteur hors ligne ne signale rien). Le message ne contient jamais la requête.
+// Sentry pas encore chargé : rien n'est noté, la recherche suivante réessaie.
+function signalerSecours(raison) {
+  if (secoursSignale || !window.__SENTRY__) return;
+  secoursSignale = true;
+  try {
+    if (sessionStorage.getItem("ot_secours_signale")) return;
+    sessionStorage.setItem("ot_secours_signale", "1");
+  } catch (e) { /* stockage refusé : signalé une fois pour cette page */ }
+  try {
+    var err = new Error("Finder : recherche servie par Algolia, Elastic ne répond pas (" + raison + ")");
+    err.name = "FinderSecoursAlgolia";
+    window.dispatchEvent(new ErrorEvent("error", { message: err.message, error: err }));
+  } catch (e) { /* jamais bloquant */ }
+}
+
+// Même entrée et même sortie que la partie Elastic de search(). Le filtre suit
+// la règle d'Elastic : avec un onglet, Filtres contient sa valeur (filtres_cles,
+// précalculé) ; sans onglet, les fiches « …-only » sont exclues sauf « all-only »
+// (sans_filtre).
+async function rechercheAlgolia(query, filter, page) {
+  var params = new URLSearchParams();
+  params.set("query", query);
+  params.set("hitsPerPage", String(page ? RESULTS_PAGE_SIZE : 10));
+  params.set("page", String(page ? page - 1 : 0));
+  params.set("filters", filter ? 'filtres_cles:"' + String(filter).replace(/["\\]/g, "") + '"' : "sans_filtre:true");
+  params.set("attributesToRetrieve", "Name,Slug,Img,Wording_Logo,Filtres");
+  params.set("attributesToHighlight", "[]");
+  var res = await fetchAvecDelai(ALGOLIA_QUERY_URL, {
+    method: "POST",
+    // Requête « simple » (pas d'en-tête personnalisé) : pas de pré-vol CORS.
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: JSON.stringify({ params: params.toString() }),
+  }, ALGOLIA_DELAI_MS);
+  if (!res.ok) throw new Error("Algolia HTTP " + res.status);
+  var data = await res.json();
+  var results = (data.hits || []).map(function (h) {
+    return { Name: h.Name, Slug: h.Slug, Img: h.Img, wordingLogo: h.Wording_Logo, filtres: h.Filtres };
+  });
+  return { results: results, total: data.nbHits || 0 };
+}
+
+var MAX_CARRIED = 25;           // cap stored batch (defensive: writes failing across many navs)
 
 // Dedup on the bare query string: `count` must increment EXACTLY once per query
 // per page-load (it feeds Finder Importance), and updateQueryCount bumps `count`
@@ -798,34 +895,61 @@ async function search(query, filter, page) {
       return { results: [], fromSuggest: false };
     }
 
-    const response = await fetchJson(`${ES_URL}/_search`, {
-      method: "POST",
-      headers: SEARCH_HEADERS,
-      body: JSON.stringify(buildSearchBody(query, filter, page)),
-    });
+    // Elastic d'abord, sauf s'il est noté en panne pour cet onglet (secours Algolia
+    // plus haut). Une erreur d'Elastic ne vide plus la liste : Algolia répond.
+    var data = null;
+    var raison = "panne notée";
+    if (Date.now() >= esPanneJusqua) {
+      try {
+        const res = await fetchAvecDelai(`${ES_URL}/_search`, {
+          method: "POST",
+          headers: SEARCH_HEADERS,
+          body: JSON.stringify(buildSearchBody(query, filter, page)),
+        }, ES_DELAI_MS);
+        if (!res.ok) {
+          var httpErr = new Error("HTTP " + res.status);
+          httpErr.status = res.status;
+          throw httpErr;
+        }
+        data = await res.json();
+        esEchecs = 0;
+      } catch (esErr) {
+        raison = esErr && esErr.delai ? "délai dépassé" : (esErr && esErr.status ? "HTTP " + esErr.status : "réseau");
+        if (estPanneElastic(esErr)) noterEchecElastic();
+        console.error(esErr);
+      }
+    }
 
-    const hits = response.data.hits.hits;
-    var suggest = response.data.suggest && response.data.suggest.med_suggest;
-    var suggestions = (suggest && suggest[0] && suggest[0].options) || [];
+    var results, total, usingSuggestions = false;
+    if (data) {
+      const hits = data.hits.hits;
+      var suggest = data.suggest && data.suggest.med_suggest;
+      var suggestions = (suggest && suggest[0] && suggest[0].options) || [];
 
-    const usingSuggestions = hits.length === 0 && suggestions.length > 0;
-    const rawResults = usingSuggestions ? suggestions : hits;
+      usingSuggestions = hits.length === 0 && suggestions.length > 0;
+      const rawResults = usingSuggestions ? suggestions : hits;
 
-    // Nombre total de fiches trouvées : la pagination de /search-result le lit ici, une
-    // fois la réponse jugée à jour (elle ne se dessine plus depuis search(), où une
-    // réponse dépassée la redessinait).
-    var total = (response.data.hits.total && response.data.hits.total.value) || 0;
+      // Nombre total de fiches trouvées : la pagination de /search-result le lit ici, une
+      // fois la réponse jugée à jour (elle ne se dessine plus depuis search(), où une
+      // réponse dépassée la redessinait).
+      total = (data.hits.total && data.hits.total.value) || 0;
 
-    const results = rawResults.map((item) => {
-      const src = item._source || {};
-      return {
-        Name: src.Name,
-        Slug: src.Slug,
-        Img: src.Logo_for_finder_URL,
-        wordingLogo: src.Wording_Logo,
-        filtres: src.Filtres,
-      };
-    });
+      results = rawResults.map((item) => {
+        const src = item._source || {};
+        return {
+          Name: src.Name,
+          Slug: src.Slug,
+          Img: src.Logo_for_finder_URL,
+          wordingLogo: src.Wording_Logo,
+          filtres: src.Filtres,
+        };
+      });
+    } else {
+      const secours = await rechercheAlgolia(query, filter, page);
+      results = secours.results;
+      total = secours.total;
+      signalerSecours(raison);
+    }
 
     // Pin the canonical fiche to #1 for known ambiguous short prefixes (see PINNED_FIRST).
     // Liste : la première fiche présente gagne (les autres ne sont pas regardées).
@@ -1082,6 +1206,8 @@ var QUERY_LOG_SCRIPT_ID = "finder-query-log";
 
 async function updateQueryCount(query, results = true, click = true) {
   try {
+    // Elastic noté en panne (secours Algolia) : le journal attend son retour.
+    if (Date.now() < esPanneJusqua) return;
     const currentHost = window.location.hostname;
 
     // Only log production; ignore staging/sandbox
