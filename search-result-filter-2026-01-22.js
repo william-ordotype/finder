@@ -23,11 +23,95 @@ function goToPage(n) {
   window.scrollTo(0, 0);
 }
 
+// ---------- Modèles du Designer (variante 1, 23/11/2026) ----------
+// Le bloc masqué .search-templates de la page porte les modèles : ligne (a.search-row,
+// combo is-page, voir buildSearchRow dans l'index), message (.search-message) et
+// pagination (.search-pagination_item, combos is-current, is-ellipsis, is-arrow,
+// is-arrow + is-next). Le moteur les recopie : le dessin se règle dans le Designer.
+// Sans ce bloc, l'ancien dessin en styles en ligne.
+function pageModel(selector) {
+  return document.querySelector(".search-templates " + selector);
+}
+
+function pageMessage(text) {
+  var model = pageModel(".search-message");
+  if (!model) return null;
+  var msg = model.cloneNode(true);
+  msg.removeAttribute("id");
+  msg.textContent = text;
+  return msg;
+}
+
+// Cases de la pagination : 7 au plus, « … » pour les pages sautées.
+function pageSlots(current, totalPages) {
+  var slots = [], n;
+  if (totalPages <= 7) {
+    for (n = 1; n <= totalPages; n++) slots.push(n);
+  } else if (current <= 4) {
+    slots = [1, 2, 3, 4, 5, "…", totalPages];
+  } else if (current > totalPages - 4) {
+    slots = [1, "…"];
+    for (n = totalPages - 4; n <= totalPages; n++) slots.push(n);
+  } else {
+    slots = [1, "…", current - 1, current, current + 1, "…", totalPages];
+  }
+  return slots;
+}
+
+function displayPaginationFromModels(totalPages, query, paginationDiv) {
+  var models = {
+    page: pageModel(".search-pagination_item:not(.is-current):not(.is-ellipsis):not(.is-arrow)"),
+    current: pageModel(".search-pagination_item.is-current"),
+    ellipsis: pageModel(".search-pagination_item.is-ellipsis"),
+    prev: pageModel(".search-pagination_item.is-arrow:not(.is-next)"),
+    next: pageModel(".search-pagination_item.is-arrow.is-next")
+  };
+  if (!models.page || !models.current) return false;
+  paginationDiv.innerHTML = "";
+  paginationDiv.removeAttribute("style");
+  if (totalPages <= 1) return true;   // une seule page : pas de pagination
+  var href = function (n) { return `${baseUrl}/search-result?query=${encodeURIComponent(query || '')}&page=${n}`; };
+  var link = function (model, n) {
+    var a = model.cloneNode(true);
+    a.removeAttribute("id");
+    a.href = href(n);
+    a.addEventListener("click", function (event) { event.preventDefault(); goToPage(n); });
+    return a;
+  };
+  var arrow = function (model, n, label, enabled) {
+    if (!model) return;
+    var a = link(model, n);
+    a.setAttribute("aria-label", label);
+    // Première ou dernière page : la flèche garde sa place, invisible et hors du clavier.
+    if (!enabled) { a.style.visibility = "hidden"; a.setAttribute("tabindex", "-1"); a.setAttribute("aria-hidden", "true"); }
+    paginationDiv.appendChild(a);
+  };
+  arrow(models.prev, page - 1, "Page précédente", page > 1);
+  pageSlots(page, totalPages).forEach(function (slot) {
+    if (slot === "…") {
+      if (!models.ellipsis) return;
+      var gap = models.ellipsis.cloneNode(true);
+      gap.removeAttribute("id");
+      gap.setAttribute("aria-hidden", "true");
+      paginationDiv.appendChild(gap);
+      return;
+    }
+    var a = link(slot === page ? models.current : models.page, slot);
+    a.textContent = String(slot);
+    a.setAttribute("aria-label", "Page " + slot);
+    if (slot === page) a.setAttribute("aria-current", "page");
+    paginationDiv.appendChild(a);
+  });
+  arrow(models.next, page + 1, "Page suivante", page < totalPages);
+  return true;
+}
+
 function displayPagination(totalResults, query){
     // Même taille de page que la requête Elastic.
     const totalPages = Math.ceil(totalResults / RESULTS_PAGE_SIZE);
     const paginationDiv = document.querySelector(`div[data-w-tab="${activeTab}"] div#pagination`);
     if (!paginationDiv) return;
+    if (displayPaginationFromModels(totalPages, query, paginationDiv)) return;
     paginationDiv.innerHTML = '';
     paginationDiv.style.cssText = "display: flex; justify-content: center; grid-column-gap: .5rem; align-items: center;"
 
@@ -173,10 +257,15 @@ async function displayAll(){
     if (!query) {
       resultList.innerHTML = '';
       setResultsTitle(resultList, 0);
-      const msg = document.createElement("div");
-      msg.textContent = "Saisissez un terme dans la barre de recherche.";
-      // 16 px : aligné sur le texte des résultats (et sur le titre), plus collé au bord.
-      msg.style.cssText = "padding: 8px 16px; font-size: 16px; color: #555;";
+      // Arrivée sans requête (lien du menu, adresse tapée) : la page restait blanche.
+      var emptyText = "Saisissez le nom d’une pathologie dans la barre de recherche.";
+      var msg = pageMessage(emptyText);
+      if (!msg) {
+        msg = document.createElement("div");
+        msg.textContent = emptyText;
+        // 16 px : aligné sur le texte des résultats (et sur le titre), plus collé au bord.
+        msg.style.cssText = "padding: 8px 16px; font-size: 16px; color: #555;";
+      }
       resultList.appendChild(msg);
       clearAllPagination();
       return;
@@ -210,11 +299,15 @@ async function displayAll(){
 
     // Aucun résultat et aucune suggestion
     if (results.length === 0) {
-      const msg = document.createElement("div");
-      msg.textContent = `Pas de résultats pour «\u00A0${query}\u00A0». Vérifiez l'orthographe de votre recherche.`;
-      msg.style.padding = "8px 16px";
-      msg.style.fontSize = "16px";
-      msg.style.color = "#555";
+      const noneText = `Pas de résultats pour «\u00A0${query}\u00A0». Vérifiez l'orthographe de votre recherche.`;
+      let msg = pageMessage(noneText);
+      if (!msg) {
+        msg = document.createElement("div");
+        msg.textContent = noneText;
+        msg.style.padding = "8px 16px";
+        msg.style.fontSize = "16px";
+        msg.style.color = "#555";
+      }
       resultList.appendChild(msg);
       clearAllPagination();
       return;
@@ -222,11 +315,15 @@ async function displayAll(){
   
     // Cas "fallback sur les suggestions"
     if (fromSuggest) {
-      const info = document.createElement("div");
-      info.textContent = `0 résultats trouvés pour «\u00A0${query}\u00A0». Voici quelques suggestions\u00A0:`;
-      info.style.padding = "4px 16px 8px";
-      info.style.fontSize = "14px";
-      info.style.color = "#555";
+      const suggestText = `0 résultats trouvés pour «\u00A0${query}\u00A0». Voici quelques suggestions\u00A0:`;
+      let info = pageMessage(suggestText);
+      if (!info) {
+        info = document.createElement("div");
+        info.textContent = suggestText;
+        info.style.padding = "4px 16px 8px";
+        info.style.fontSize = "14px";
+        info.style.color = "#555";
+      }
       resultList.appendChild(info);
     }
 
@@ -240,6 +337,7 @@ async function displayAll(){
       handleSendResultsToGA("search-result-page", shownQuery, results.length);
     }
 
+    var rowModel = pageModel(".search-row");
     results.forEach((result, index) => {
         if (result.filtres && result.filtres.includes("only")){
           let filter;
@@ -249,6 +347,17 @@ async function displayAll(){
             filter = transformString(activeFilter);
           }
           if (!result.filtres.includes(filter)) return;
+        }
+        var position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
+        if (rowModel) {
+          var row = buildSearchRow(rowModel, result);
+          row.addEventListener("click", function (event) {
+            event.preventDefault();
+            handleSendClickResultToGA("search-result-page", shownQuery, result.Slug, position);
+            window.location.href = `${baseUrl}/pathologies/${result.Slug}`;
+          });
+          resultList.appendChild(row);
+          return;
         }
         const resultElement = document.createElement("a");
     
@@ -285,7 +394,6 @@ async function displayAll(){
            "text-decoration: none; color: #0c0e16; font-size: 16px; padding-top: 16px; padding-bottom: 16px; padding-left: 16px; padding-right: 8px; display: flex; align-items: center; justify-content:space-between";
     
         // Clic mesuré comme dans la liste déroulante (GA ne voyait aucun clic de cette page).
-        var position = (page - 1) * RESULTS_PAGE_SIZE + index + 1;
         resultElement.addEventListener("click", function(event) {
             event.preventDefault();
             handleSendClickResultToGA("search-result-page", shownQuery, result.Slug, position);
@@ -340,6 +448,12 @@ async function displayAll(){
             try { setItemWithExpiration('filterTemp', activeFilter, 24); } catch (e) { /* stockage refusé : filtre gardé pour cette page */ }
             page = 1;
             displayAll();
+            // Téléphone : le filtre choisi passe en tête de la rangée (order: -1 du Designer)
+            // mais la rangée gardait son défilement : il sortait de l'écran par la gauche.
+            // Retour au début après le traitement de l'onglet par Webflow (même remise à
+            // zéro que la liste de l'accueil).
+            var menu = el.currentTarget.closest('#filter');
+            if (menu) requestAnimationFrame(function () { menu.scrollLeft = 0; });
         })
     })
 
@@ -358,7 +472,16 @@ async function displayAll(){
               tabClicked = true;
             }
         });
-        if (query != null && !tabClicked) displayAll();
+        // Sans requête aussi : displayAll écrit le message d'accueil (la page était blanche).
+        if (!tabClicked) displayAll();
+        // Ordinateur, sans requête : le curseur attend dans le champ de la barre du haut
+        // (le champ du téléphone a déjà autofocus dans le Designer).
+        if (!query) {
+          var navBar = document.getElementById('search-bar-nav');
+          if (navBar && navBar.offsetParent && !navBar.value) {
+            try { navBar.focus({ preventScroll: true }); } catch (e) { navBar.focus(); }
+          }
+        }
     });
 
     // Live-refresh the main result list as the user types. Bind both bars

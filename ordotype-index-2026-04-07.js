@@ -443,8 +443,8 @@ async function clickEvent(activeFilter) {
       var msg = document.createElement("div");
       msg.textContent = `Pas de résultats pour "${query}", dans ce module.`;
       // Téléphone, champ principal : la liste n'a pas de marge intérieure, le texte
-      // s'aligne sur celui des lignes.
-      if (mainFieldFrame(searchBar)) msg.style.padding = "12px";
+      // s'aligne sur celui des lignes. Lignes du Designer : même retrait qu'elles.
+      if (mainFieldFrame(searchBar) || searchRowModel()) msg.style.padding = "12px";
       searchResultInner.appendChild(msg);
     }
 
@@ -512,7 +512,9 @@ async function inputEvent(input, e) {
 
     const inputRect = input.getBoundingClientRect();
     const mainFrame = mainFieldFrame(input);
-    if (window.matchMedia("(min-width: 480px)").matches) {
+    if (searchRowModel()) {
+      searchResults.style.cssText = LIST_FRAME_V1;
+    } else if (window.matchMedia("(min-width: 480px)").matches) {
       searchResults.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 16px; background: #fff;";
       searchResults.style.width = input.id === "search-bar-nav" ? `${inputRect.width * 2}px` : `${inputRect.width}px`;
       searchResults.style.left = `${inputRect.left}px`;
@@ -526,6 +528,7 @@ async function inputEvent(input, e) {
     searchResults.style.top = isMain ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
     searchResults.style.zIndex = isMain ? "9999" : "10000";
     if (mainFrame) placeUnderMainField(searchResults, mainFrame);
+    if (searchRowModel()) placeUnderSearchForm(searchResults, input);
 
     // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
     searchResults.textContent =
@@ -876,11 +879,71 @@ function moduleIconUrls(result) {
   return [result.Img];
 }
 
+// ---------- Modèle de ligne du Designer (barre de recherche, variante 1, 23/11/2026) ----------
+// Le dessin d'une ligne de résultat vit dans le Designer Webflow, pas ici : le moteur
+// recopie un modèle, si bien que le canvas montre ce qui sort. Modèle :
+//   a.search-row > .search-row_title + .search-row_module > img.search-row_icon + .search-row_label
+// - accueil : dans le gabarit #search-result, onglet « Tab 1 » (liste sous le champ) ;
+// - /search-result : dans le bloc masqué .search-templates (combo is-page), lu par
+//   search-result-filter, avec les modèles de pagination et de message.
+// Sans modèle (gabarit de la barre de navigation, Designer d'avant), l'ancien dessin.
+function searchRowModel(scope) {
+  if (scope) return scope.querySelector(".search-row");
+  var root = document.getElementById(searchBarMain ? "search-result" : "search-result-nav");
+  return root ? root.querySelector('[data-w-tab="Tab 1"] .search-row') : null;
+}
+
+function buildSearchRow(model, result) {
+  var row = model.cloneNode(true);
+  row.removeAttribute("id");
+  row.classList.add("search-result");   // flèches du clavier, mesures (a.search-result)
+  row.href = `${baseUrl}/pathologies/${result.Slug}`;
+  var title = row.querySelector(".search-row_title");
+  if (title) title.textContent = result.Name;
+  // Le libellé écrit est masqué sur téléphone (Designer) : l'icône porte le libellé en
+  // texte alternatif, le texte écrit n'est pas relu une deuxième fois.
+  var label = row.querySelector(".search-row_label");
+  if (label) {
+    label.textContent = result.wordingLogo || "";
+    label.setAttribute("aria-hidden", "true");
+  }
+  var icon = row.querySelector(".search-row_icon");
+  if (icon) {
+    var urls = moduleIconUrls(result);
+    icon.removeAttribute("srcset");
+    icon.removeAttribute("sizes");
+    icon.src = urls[0];
+    icon.alt = result.wordingLogo || "";
+    for (var i = urls.length - 1; i > 0; i--) {
+      var more = icon.cloneNode(false);
+      more.src = urls[i];
+      more.alt = "";
+      icon.parentNode.insertBefore(more, icon.nextSibling);
+    }
+  }
+  return row;
+}
+
+// Variante 1 : la liste se pose 8 px sous le cadre du champ (.search-form), à sa largeur.
+// Le cadre de la liste (coins, ombre, fond) est celui du gabarit dans le Designer.
+function placeUnderSearchForm(list, input) {
+  var frame = ((input.closest && input.closest(".search-form")) || input).getBoundingClientRect();
+  list.style.position = "absolute";
+  list.style.zIndex = "9999";
+  list.style.left = `${frame.left + window.pageXOffset}px`;
+  list.style.width = `${frame.width}px`;
+  list.style.top = `${frame.bottom + window.pageYOffset + 8}px`;
+}
+
+// Message seul (aucun résultat) sous un champ à modèle : même cadre que le gabarit.
+var LIST_FRAME_V1 = "background: #fff; border-radius: 8px; padding: 16px; color: var(--neutral-500, #47505c); box-shadow: 0 0 0 1px var(--base-100, rgba(12, 14, 22, 0.1)), 0 16px 40px -12px rgba(35, 38, 59, 0.22);";
+
 // Display the search results
 function displayResults(results, input, fromSuggest) {
   let resultList = document.getElementById("search-results");
   let searchResultInner = "";
   currentFocus = -1;   // nouvelle liste : plus rien de surligné
+  var model = searchRowModel();   // modèle de ligne du Designer, ou null (ancien dessin)
 
   if (resultList) {
     var searchResult = resultList.querySelector('#filter');
@@ -898,9 +961,12 @@ function displayResults(results, input, fromSuggest) {
     resultList.id = "search-results";
 
     const inputRect = input.getBoundingClientRect();
-    const mainFrame = mainFieldFrame(input);
+    const mainFrame = model ? null : mainFieldFrame(input);
 
-    if (window.matchMedia("(min-width: 480px)").matches) {
+    if (model) {
+      // Variante 1 : place seulement, le cadre est celui du gabarit dans le Designer.
+      placeUnderSearchForm(resultList, input);
+    } else if (window.matchMedia("(min-width: 480px)").matches) {
       resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
       if (input.id === "search-bar-nav") {
         resultList.style.width = `${inputRect.width * 2}px`;
@@ -914,23 +980,27 @@ function displayResults(results, input, fromSuggest) {
       resultList.style.marginLeft = '.5rem';
       resultList.style.marginRight = '.5rem';
     }
-    resultList.style.position = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "absolute" : "fixed";
-    resultList.style.top =
-      (input.id == "search-bar-main" || input.id == "search-bar-hp")
-        ? `${inputRect.bottom + window.pageYOffset + 5}px`
-        : `${inputRect.bottom + 5}px`;
-    if (mainFrame) {
-      resultList.style.cssText += MAIN_LIST_FRAME;
-      placeUnderMainField(resultList, mainFrame);
+    if (!model) {
+      resultList.style.position = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "absolute" : "fixed";
+      resultList.style.top =
+        (input.id == "search-bar-main" || input.id == "search-bar-hp")
+          ? `${inputRect.bottom + window.pageYOffset + 5}px`
+          : `${inputRect.bottom + 5}px`;
+      if (mainFrame) {
+        resultList.style.cssText += MAIN_LIST_FRAME;
+        placeUnderMainField(resultList, mainFrame);
+      }
+      resultList.style.zIndex = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "9999" : "10000";
+      resultList.style.background = "white";
     }
-    resultList.style.zIndex = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "9999" : "10000";
-    resultList.style.background = "white";
 
     let searchResultOriginal = searchBarMain ? document.querySelector('#search-result') : document.querySelector('#search-result-nav');
     if (!searchResultOriginal) return;
     var searchResult = searchResultOriginal.cloneNode(true);
     searchResult.id = "filter";
     searchResult.style.display = "block";
+    // Le modèle de ligne reste dans le gabarit d'origine ; la copie affichée ne le garde pas.
+    searchResult.querySelectorAll(".search-row").forEach(function (row) { row.parentNode.removeChild(row); });
     if(!searchBarMain){
         const scrollContainer = searchResult.querySelector('.search-result-tabs');
         const scrollContent = searchResult.querySelector('.srt-menu');
@@ -982,7 +1052,7 @@ function displayResults(results, input, fromSuggest) {
   if (fromSuggest && searchResultInner && typeof searchResultInner.appendChild === 'function') {
     const info = document.createElement("div");
     info.textContent = `0 résultats trouvés pour "${input.value}". Voici quelques suggestions :`;
-    info.style.padding = mainRows ? "8px 12px 4px" : "4px 8px";
+    info.style.padding = (mainRows || model) ? "8px 12px 4px" : "4px 8px";
     info.style.fontSize = "13px";
     info.style.color = "#555";
     info.style.marginBottom = "4px";
@@ -1001,6 +1071,16 @@ function displayResults(results, input, fromSuggest) {
         filter = transformString(activeFilter);
       }
       if (!result.filtres.includes(filter)) return;
+    }
+    if (model) {
+      var row = buildSearchRow(model, result);
+      row.addEventListener("click", function (event) {
+        event.preventDefault();
+        handleSendClickResultToGA(input.id, input.value || "", result.Slug, index + 1);
+        window.location.href = `${baseUrl}/pathologies/${result.Slug}`;
+      });
+      searchResultInner.appendChild(row);
+      return;
     }
     const resultElement = document.createElement("a");
 
