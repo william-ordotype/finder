@@ -896,6 +896,9 @@ function searchRowModel(scope) {
 function buildSearchRow(model, result) {
   var row = model.cloneNode(true);
   row.removeAttribute("id");
+  // Le modèle porte la combo is-template (display:none) : invisible tant qu'un ancien
+  // moteur, qui ne le connaît pas, recopie le gabarit tel quel.
+  row.classList.remove("is-template");
   row.classList.add("search-result");   // flèches du clavier, mesures (a.search-result)
   row.href = `${baseUrl}/pathologies/${result.Slug}`;
   var title = row.querySelector(".search-row_title");
