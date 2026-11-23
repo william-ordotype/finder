@@ -881,6 +881,14 @@ var MODULE_ICONS = {
   "Soins palliatifs": "https://cdn.prod.website-files.com/604b9ac88b080efc7ce802bd/679772f5dc51b632f1816365_module-icon=moduleIcon-SoinsPal-16.svg"
 };
 
+// Libellé écrit d'une fiche de deux modules : « MG & Rhumatologie » plutôt que
+// « Médecine générale & Rhumatologie », pour tenir dans la colonne des modules.
+// Le texte alternatif de l'icône garde le libellé complet.
+function shortModuleLabel(wording) {
+  var text = String(wording || "");
+  return text.indexOf(" & ") === -1 ? text : text.replace("Médecine générale", "MG");
+}
+
 function moduleIconUrls(result) {
   var parts = String(result.wordingLogo || "").split(" & ");
   if (parts.length > 1 && parts.every(function (p) { return MODULE_ICONS[p]; })) {
@@ -924,7 +932,7 @@ function buildSearchRow(model, result) {
   // texte alternatif, le texte écrit n'est pas relu une deuxième fois.
   var label = row.querySelector(".search-row_label");
   if (label) {
-    label.textContent = result.wordingLogo || "";
+    label.textContent = shortModuleLabel(result.wordingLogo);
     label.setAttribute("aria-hidden", "true");
   }
   var icon = row.querySelector(".search-row_icon");
