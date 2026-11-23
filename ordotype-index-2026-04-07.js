@@ -517,8 +517,12 @@ async function inputEvent(input, e) {
       searchResults.style.cssText = LIST_FRAME_V1;
     } else if (window.matchMedia("(min-width: 480px)").matches) {
       searchResults.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 16px; background: #fff;";
-      searchResults.style.width = input.id === "search-bar-nav" ? `${inputRect.width * 2}px` : `${inputRect.width}px`;
-      searchResults.style.left = `${inputRect.left}px`;
+      if (input.id === "search-bar-nav") {
+        placeNavList(searchResults, inputRect);
+      } else {
+        searchResults.style.width = `${inputRect.width}px`;
+        searchResults.style.left = `${inputRect.left}px`;
+      }
     } else if (mainFrame) {
       searchResults.style.cssText = MAIN_LIST_FRAME + " padding: 16px; background: #fff;";
     } else {
@@ -872,6 +876,14 @@ var MODULE_ICONS = {
   "Soins palliatifs": "https://cdn.prod.website-files.com/604b9ac88b080efc7ce802bd/679772f5dc51b632f1816365_module-icon=moduleIcon-SoinsPal-16.svg"
 };
 
+// Libellé écrit d'une fiche de deux modules : « MG & Rhumatologie » plutôt que
+// « Médecine générale & Rhumatologie », pour tenir dans la colonne des modules.
+// Le texte alternatif de l'icône garde le libellé complet.
+function shortModuleLabel(wording) {
+  var text = String(wording || "");
+  return text.indexOf(" & ") === -1 ? text : text.replace("Médecine générale", "MG");
+}
+
 function moduleIconUrls(result) {
   var parts = String(result.wordingLogo || "").split(" & ");
   if (parts.length > 1 && parts.every(function (p) { return MODULE_ICONS[p]; })) {
@@ -915,7 +927,7 @@ function buildSearchRow(model, result) {
   // texte alternatif, le texte écrit n'est pas relu une deuxième fois.
   var label = row.querySelector(".search-row_label");
   if (label) {
-    label.textContent = result.wordingLogo || "";
+    label.textContent = shortModuleLabel(result.wordingLogo);
     label.setAttribute("aria-hidden", "true");
   }
   var icon = row.querySelector(".search-row_icon");
@@ -944,6 +956,18 @@ function placeUnderSearchForm(list, input) {
   list.style.left = `${frame.left + window.pageXOffset}px`;
   list.style.width = `${frame.width}px`;
   list.style.top = `${frame.bottom + window.pageYOffset + 8}px`;
+}
+
+// Barre du haut : liste deux fois plus large que le champ, calée sur son bord gauche.
+// Si elle sortirait de l'écran (tablette, petit portable), on la cale sur le bord
+// droit du champ, à 16 px au moins des bords de la fenêtre.
+function placeNavList(list, inputRect) {
+  var edge = 16;
+  var width = Math.min(inputRect.width * 2, window.innerWidth - 2 * edge);
+  var left = inputRect.left;
+  if (left + width > window.innerWidth - edge) left = Math.max(edge, inputRect.right - width);
+  list.style.width = `${width}px`;
+  list.style.left = `${left}px`;
 }
 
 // Message seul (aucun résultat) sous un champ à modèle : même cadre que le gabarit.
@@ -982,8 +1006,7 @@ function displayResults(results, input, fromSuggest) {
       // Barre du haut avec modèle : même place qu'avant, le cadre est celui du gabarit.
       if (!model) resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
       if (input.id === "search-bar-nav") {
-        resultList.style.width = `${inputRect.width * 2}px`;
-        resultList.style.left = `${inputRect.left}px`;
+        placeNavList(resultList, inputRect);
       } else {
         resultList.style.width = `${inputRect.width}px`;
         resultList.style.left = `${inputRect.left}px`;
