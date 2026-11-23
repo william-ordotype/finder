@@ -517,7 +517,8 @@ async function inputEvent(input, e) {
 
     const inputRect = input.getBoundingClientRect();
     const mainFrame = mainFieldFrame(input);
-    if (searchRowModel()) {
+    var v1Main = !!searchRowModel() && isMainInput(input);
+    if (v1Main) {
       searchResults.style.cssText = LIST_FRAME_V1;
     } else if (window.matchMedia("(min-width: 480px)").matches) {
       searchResults.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 16px; background: #fff;";
@@ -533,7 +534,7 @@ async function inputEvent(input, e) {
     searchResults.style.top = isMain ? `${inputRect.bottom + window.pageYOffset + 5}px` : `${inputRect.bottom + 5}px`;
     searchResults.style.zIndex = isMain ? "9999" : "10000";
     if (mainFrame) placeUnderMainField(searchResults, mainFrame);
-    if (searchRowModel()) placeUnderSearchForm(searchResults, input);
+    if (v1Main) placeUnderSearchForm(searchResults, input);
 
     // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
     searchResults.textContent =
@@ -895,7 +896,14 @@ function moduleIconUrls(result) {
 function searchRowModel(scope) {
   if (scope) return scope.querySelector(".search-row");
   var root = document.getElementById(searchBarMain ? "search-result" : "search-result-nav");
-  return root ? root.querySelector('[data-w-tab="Tab 1"] .search-row') : null;
+  return root ? root.querySelector(".search-row") : null;
+}
+
+// Champ principal de l'accueil (liste posée sous son cadre) ; sinon la barre du haut ou le
+// panneau de la loupe, dont la liste garde sa place d'avant (fixe, sous la barre ; le panneau
+// impose la sienne).
+function isMainInput(input) {
+  return input.id === "search-bar-main" || input.id === "search-bar-hp";
 }
 
 function buildSearchRow(model, result) {
@@ -971,11 +979,13 @@ function displayResults(results, input, fromSuggest) {
     const inputRect = input.getBoundingClientRect();
     const mainFrame = model ? null : mainFieldFrame(input);
 
-    if (model) {
+    var mainModel = !!model && isMainInput(input);
+    if (mainModel) {
       // Variante 1 : place seulement, le cadre est celui du gabarit dans le Designer.
       placeUnderSearchForm(resultList, input);
     } else if (window.matchMedia("(min-width: 480px)").matches) {
-      resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
+      // Barre du haut avec modèle : même place qu'avant, le cadre est celui du gabarit.
+      if (!model) resultList.style.cssText = "box-shadow: 0 0 0 1px rgb(35 38 59 / 10%), 0 6px 16px -4px rgb(35 38 59 / 15%); border-radius: 4px; padding: 8px; background: #fff;";
       if (input.id === "search-bar-nav") {
         resultList.style.width = `${inputRect.width * 2}px`;
         resultList.style.left = `${inputRect.left}px`;
@@ -988,18 +998,18 @@ function displayResults(results, input, fromSuggest) {
       resultList.style.marginLeft = '.5rem';
       resultList.style.marginRight = '.5rem';
     }
-    if (!model) {
+    if (!mainModel) {
       resultList.style.position = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "absolute" : "fixed";
       resultList.style.top =
         (input.id == "search-bar-main" || input.id == "search-bar-hp")
           ? `${inputRect.bottom + window.pageYOffset + 5}px`
-          : `${inputRect.bottom + 5}px`;
+          : `${inputRect.bottom + (model ? 8 : 5)}px`;
       if (mainFrame) {
         resultList.style.cssText += MAIN_LIST_FRAME;
         placeUnderMainField(resultList, mainFrame);
       }
       resultList.style.zIndex = (input.id == "search-bar-main" || input.id == "search-bar-hp") ? "9999" : "10000";
-      resultList.style.background = "white";
+      if (!model) resultList.style.background = "white";
     }
 
     let searchResultOriginal = searchBarMain ? document.querySelector('#search-result') : document.querySelector('#search-result-nav');
