@@ -67,7 +67,7 @@ window.onload = function () {
 
   
     const appId = 'TDNYD0DXDQ'
-  const apiKey = '616dc37f94cf62fcf064bbce0ee53b32'
+  const apiKey = 'ff198ac78e8cf1ed80719223ea3213b2'
   var searchClient = algoliasearch(
    appId,
     apiKey
