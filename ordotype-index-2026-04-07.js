@@ -21,6 +21,10 @@ const baseUrl = window.location.origin;
 // Résultats par page sur /search-result (requête Elastic et pagination).
 var RESULTS_PAGE_SIZE = 20;
 
+// Classes de la liste (search-result-body, search-result-tabs, srt-menu) : renommées au
+// format Client-First dans le Designer (search-result_body, search-result_tabs,
+// search-result_tabs-menu). Les sélecteurs acceptent les deux noms pendant la transition.
+
 // -1 = aucun résultat surligné (valeur de départ, même si le champ est déjà rempli).
 var currentFocus = -1;
 
@@ -435,7 +439,7 @@ async function clickEvent(activeFilter) {
 
   if (results.length === 0) {
     let searchResultInner =
-      searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
+      searchResults.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body, div[data-w-tab="Tab 1"] div.search-result_body`);
 
     // textContent, jamais innerHTML : la requête est du texte tapé, pas du HTML.
     if (searchResultInner) {
@@ -628,7 +632,7 @@ if (searchBtn) {
 // onglets de filtre. L'ancien départ « currentFocus = 3 » sautait en dur les 4 onglets
 // d'aujourd'hui : un onglet ajouté dans le Designer décalait toute la navigation.
 function keyDownEvent(e) {
-  var box = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`));
+  var box = document.getElementById("search-results") || (typeof activeTab !== 'undefined' && document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body, div[data-w-tab="${activeTab}"] div.search-result_body`));
   var x = box ? box.querySelectorAll("a.search-result") : null;
   if (e.keyCode == 40) {
     currentFocus++;
@@ -983,7 +987,7 @@ function displayResults(results, input, fromSuggest) {
   if (resultList) {
     var searchResult = resultList.querySelector('#filter');
     if(searchResult){
-      searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`);
+      searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body, div[data-w-tab="Tab 1"] div.search-result_body`);
       searchResultInner.innerHTML = "";
     } else {
       resultList.remove();
@@ -1038,8 +1042,8 @@ function displayResults(results, input, fromSuggest) {
     // Le modèle de ligne reste dans le gabarit d'origine ; la copie affichée ne le garde pas.
     searchResult.querySelectorAll(".search-row").forEach(function (row) { row.parentNode.removeChild(row); });
     if(!searchBarMain){
-        const scrollContainer = searchResult.querySelector('.search-result-tabs');
-        const scrollContent = searchResult.querySelector('.srt-menu');
+        const scrollContainer = searchResult.querySelector('.search-result-tabs, .search-result_tabs');
+        const scrollContent = searchResult.querySelector('.srt-menu, .search-result_tabs-menu');
 
         scrollContent.addEventListener('mousemove', (e) => {
             const containerWidth = scrollContainer.offsetWidth;
@@ -1050,7 +1054,7 @@ function displayResults(results, input, fromSuggest) {
             scrollContent.style.transform = `translateX(${-scrollPosition}px)`;
         });
     }
-    searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body`)
+    searchResultInner = searchResult.querySelector(`div[data-w-tab="Tab 1"] div.search-result-body, div[data-w-tab="Tab 1"] div.search-result_body`)
     searchResult.querySelectorAll('a').forEach((link, index) => {
       if (activeFilter) {
         if (index === 0) link.classList.remove('w--current');
@@ -1071,7 +1075,7 @@ function displayResults(results, input, fromSuggest) {
           lastActiveTab = el.currentTarget.getAttribute('data-w-tab');
           // Téléphone : l'onglet choisi passe en tête de la rangée (order: -1 du Designer) ;
           // la rangée revient au début pour qu'il reste à l'écran.
-          var menu = link.closest('.srt-menu');
+          var menu = link.closest('.srt-menu, .search-result_tabs-menu');
           if (menu) menu.scrollLeft = 0;
           clickEvent(activeFilter);
       })

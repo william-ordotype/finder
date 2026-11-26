@@ -252,7 +252,7 @@ function setResultsTitle(resultList, total, shownQuery) {
 
 async function displayAll(){
     var seq = ++displaySeq;
-    let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body`);
+    let resultList = document.querySelector(`div[data-w-tab="${activeTab}"] div.search-result-body, div[data-w-tab="${activeTab}"] div.search-result_body`);
     if (!resultList) return;
     if (!query) {
       resultList.innerHTML = '';
